@@ -20,7 +20,9 @@ public class FileUtil {
     public static String readResourceAsString(String resourceName) throws IOException {
         resourceName = "epl/" + resourceName;
         ClassLoader classLoader = FileUtil.class.getClassLoader();
-        return readToString(classLoader.getResourceAsStream(resourceName));
+        String sql = readToString(classLoader.getResourceAsStream(resourceName));
+        logger.info("sql: {}", sql);
+        return sql;
     }
 
     public static String readToString(InputStream stream) throws IOException {

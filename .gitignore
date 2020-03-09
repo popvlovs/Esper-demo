@@ -27,3 +27,5 @@ oauth_server_manager
 oauth_server_manager/**
 saas
 saas/**
+
+dependency-reduced-pom.xml
