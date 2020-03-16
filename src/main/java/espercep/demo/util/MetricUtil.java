@@ -4,6 +4,7 @@ import com.codahale.metrics.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -15,7 +16,7 @@ public class MetricUtil {
     private final static MetricRegistry metrics = new MetricRegistry();
     private static Meter consumeRate;
 
-    private final static Map<String, Metric> metricContainer = new HashMap<>();
+    private final static Map<String, Metric> metricContainer = new ConcurrentHashMap<>();
 
     static {
         consumeRate = metrics.meter("Produce rate");

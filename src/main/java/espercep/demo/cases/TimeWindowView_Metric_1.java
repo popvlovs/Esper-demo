@@ -1,10 +1,8 @@
 package espercep.demo.cases;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.espertech.esper.client.*;
-import com.lmax.disruptor.EventTranslator;
-import com.lmax.disruptor.dsl.Disruptor;
+import espercep.demo.udf.UserDefinedFunction;
 import espercep.demo.util.FileUtil;
 import espercep.demo.util.MetricUtil;
 import org.slf4j.Logger;
@@ -24,12 +22,16 @@ public class TimeWindowView_Metric_1 {
         // Set event representation
         Configuration configuration = new Configuration();
 
+        // Define UDF
+        configuration.addPlugInSingleRowFunction("oncase", UserDefinedFunction.class.getName(), "onCase", ConfigurationPlugInSingleRowFunction.ValueCache.ENABLED);
+
         EPServiceProvider epService = EPServiceProviderManager.getProvider("esper", configuration);
         Map<String, Object> eventType = new HashMap<>();
         eventType.put("event_name", String.class);
         eventType.put("src_address", String.class);
         eventType.put("dst_address", String.class);
         eventType.put("event_id", Long.class);
+        eventType.put("group", Long.class);
         eventType.put("occur_time", Long.class);
         epService.getEPAdministrator().getConfiguration().addEventType("TestEvent", eventType);
 
@@ -39,14 +41,17 @@ public class TimeWindowView_Metric_1 {
             epStatement.addListener((newData, oldData) -> {
                 // Inbound
                 Arrays.stream(Optional.ofNullable(newData).orElse(new EventBean[]{})).forEach(
-                        data -> MetricUtil.getCounter("Inbound").inc()
-                        //data -> logger.info("\n\ninbounds:\n{}\n", JSON.toJSONString(data.getUnderlying()))
+                        data -> {
+                            MetricUtil.getCounter("Inbound").inc();
+                        }
                 );
 
                 // Outbound
                 Arrays.stream(Optional.ofNullable(oldData).orElse(new EventBean[]{})).forEach(
-                        data -> MetricUtil.getCounter("Outbound").inc()
-                        //data -> logger.info("\n\noutbounds:\n{}\n", JSON.toJSONString(data.getUnderlying()))
+                        data -> {
+                            MetricUtil.getCounter("Outbound").inc();
+                            UserDefinedFunction.onEventExpired((Map) data.getUnderlying());
+                        }
                 );
             });
 
@@ -60,11 +65,12 @@ public class TimeWindowView_Metric_1 {
     private static void sendRandomEvents(EPRuntime runtime) {
         long remainingEvents = Long.MAX_VALUE;
         long cnt = 0;
-        String[] eventNames = new String[]{"A", "B", "C", "D"};
+        String[] eventNames = new String[]{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"};
         while (--remainingEvents > 0) {
             int randomVal = new Random().nextInt(eventNames.length);
             JSONObject element = new JSONObject();
             element.put("event_id", cnt++);
+            element.put("group", new Random().nextInt(5));
             element.put("event_name", eventNames[randomVal % eventNames.length]);
             element.put("src_address", "172.16.100." + cnt % 0xFF);
             element.put("dst_address", "172.16.100." + cnt % 0xFF);
