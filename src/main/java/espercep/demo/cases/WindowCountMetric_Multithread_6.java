@@ -14,16 +14,23 @@ import espercep.demo.util.MetricUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.MessageFormat;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Copyright: 瀚思安信（北京）软件技术有限公司，保留所有权利。
  *
  * @author yitian_song
  */
-public class WindowCountMetric_Multithread_5 {
-    private static final Logger logger = LoggerFactory.getLogger(WindowCountMetric_Multithread_5.class);
+public class WindowCountMetric_Multithread_6 {
+    private static final Logger logger = LoggerFactory.getLogger(WindowCountMetric_Multithread_6.class);
+
+    private static final int GROUP_BY_FIELD_NUM = 3;
+    private static final int RULE_NUM = 50;
+    private static final int GROUP_BY_DIVERSITY_DEGREE = 16;
 
     public static void main(String[] args) throws Exception {
         // Set event representation
@@ -40,49 +47,81 @@ public class WindowCountMetric_Multithread_5 {
         configuration.addPlugInSingleRowFunction("first_occur_time", UserDefinedFunction.class.getName(), "firstOccurTime", ConfigurationPlugInSingleRowFunction.ValueCache.ENABLED);
         configuration.addPlugInSingleRowFunction("last_occur_time", UserDefinedFunction.class.getName(), "lastOccurTime", ConfigurationPlugInSingleRowFunction.ValueCache.ENABLED);
 
-        EPServiceProvider epService = EPServiceProviderManager.getProvider("esper", configuration);
-        Map<String, Object> eventType = new HashMap<>();
-        eventType.put("event_name", String.class);
-        eventType.put("event_id", Long.class);
-        for (int i = 0; i < 10; i++) {
-            eventType.put("group_"+i, Integer.class);
-        }
-        eventType.put("src_address", String.class);
-        eventType.put("dst_address", String.class);
-        eventType.put("occur_time", Long.class);
-        epService.getEPAdministrator().getConfiguration().addEventType("TestEvent", eventType);
+        int cpuCores = Runtime.getRuntime().availableProcessors();
+        final List<Consumer> workerHandlers = new ArrayList<>(cpuCores);
+        AtomicInteger numEpl = new AtomicInteger(RULE_NUM);
 
+        for (int engineIndex = 0; engineIndex < cpuCores; ++engineIndex) {
+            try {
+                EPServiceProvider epService = EPServiceProviderManager.getProvider("esper#" + engineIndex, configuration);
+                Map<String, Object> eventType = new HashMap<>();
+                eventType.put("event_name", String.class);
+                eventType.put("event_id", Long.class);
+                for (int k = 0; k < GROUP_BY_FIELD_NUM; k++) {
+                    eventType.put("group_" + k, Integer.class);
+                }
+                eventType.put("src_address", String.class);
+                eventType.put("dst_address", String.class);
+                eventType.put("occur_time", Long.class);
+                epService.getEPAdministrator().getConfiguration().addEventType("TestEvent", eventType);
 
-        try {
-            for (int i = 0; i < 30; i++) {
-                String epl = FileUtil.readResourceAsString("epl_case14_count_window.sql");
-                final String ruleName = "CountWindow#" + i;
-                EPStatement epStatement = epService.getEPAdministrator().createEPL(epl, ruleName);
-                epStatement.addListener((newData, oldData, stat, rt) -> {
-                    Arrays.stream(newData).forEach(data -> {
-                        Map result = (Map) data.getUnderlying();
-                        String countStr = Optional.ofNullable(result.get("win_count")).orElse("0").toString();
-                        MetricUtil.getCounter(result.get("event_name").toString() + " outputs").inc(Integer.parseInt(countStr));
-                        //logger.info(ruleName + ":" + JSONObject.toJSONString(result));
-                    });
-                    MetricUtil.getCounter("Detected patterns ").inc();
-                });
+                boolean isAnyEplRunning = false;
+                for (int ruleIndex = 0; ruleIndex < numEpl.get(); ruleIndex++) {
+                    if (ruleIndex % cpuCores != engineIndex) {
+                        continue;
+                    }
+                    isAnyEplRunning = true;
+                    String epl = getRealEPL(FileUtil.readResourceAsString("epl_case15_count_window.sql"));
+                    logger.info("create EPL: {}", epl);
+                    createStatement(epService, epl, engineIndex, ruleIndex);
+                }
+                if (isAnyEplRunning) {
+                    workerHandlers.add(new Consumer(engineIndex, epService.getEPRuntime()));
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Error on execute eql", e);
             }
-
-            sendEventsThroughDisruptor(epService.getEPRuntime());
-        } catch (Exception e) {
-            throw new RuntimeException("Error on execute eql", e);
         }
+
+        sendEventsThroughDisruptor(workerHandlers);
     }
 
-    private static void sendEventsThroughDisruptor(EPRuntime epRuntime) {
+    private static String getRealEPL(String epl) {
+        List<String> groupByKeys = new ArrayList<>();
+        for (int i = 0; i < GROUP_BY_FIELD_NUM; i++) {
+            groupByKeys.add("A.group_" + i);
+        }
+        String groupBy = groupByKeys.stream().reduce((lhs, rhs) -> lhs + "," + rhs).orElse("");
+        return MessageFormat.format(epl, groupBy);
+    }
+
+    private static EPStatement createStatement(EPServiceProvider epService, String epl, int engineIdx, int ruleIdx) {
+        final String ruleName = "CountWindow#" + ruleIdx;
+        EPStatement epStatement = epService.getEPAdministrator().createEPL(epl, ruleName);
+        epStatement.addListener((newData, oldData, stat, rt) -> {
+            Arrays.stream(newData).forEach(data -> {
+                Map result = (Map) data.getUnderlying();
+                String countStr = Optional.ofNullable(result.get("win_count")).orElse("0").toString();
+                int count = Integer.parseInt(countStr);
+                if (count > 0) {
+                    String eventName = result.get("event_name").toString();
+                    MetricUtil.getCounter(String.format("Engine#%d, rule#%d, %s output total", engineIdx, ruleIdx, eventName)).inc(count);
+                    MetricUtil.getCounter(String.format("Engine#%d, rule#%d, %s output times", engineIdx, ruleIdx, eventName)).inc();
+                }
+            });
+            MetricUtil.getCounter("Detected patterns ").inc();
+        });
+        return epStatement;
+    }
+
+    private static void sendEventsThroughDisruptor(List<Consumer> workerHandlers) {
         Disruptor<MapEventBeanWrapper> disruptor = new Disruptor<>(new EventFactory<MapEventBeanWrapper>() {
             @Override
             public MapEventBeanWrapper newInstance() {
                 return new MapEventBeanWrapper();
             }
-        }, 2 << 10, Executors.defaultThreadFactory(), ProducerType.SINGLE, new YieldingWaitStrategy());
-        disruptor.handleEventsWith(new Consumer(0, epRuntime));
+        }, 2 << 18, Executors.defaultThreadFactory(), ProducerType.SINGLE, new YieldingWaitStrategy());
+        disruptor.handleEventsWith(workerHandlers.toArray(new Consumer[]{}));
         disruptor.start();
 
         sendRandomEvents(disruptor);
@@ -98,8 +137,8 @@ public class WindowCountMetric_Multithread_5 {
             String eventName = eventNames[randomVal % eventNames.length];
             JSONObject element = new JSONObject();
             element.put("event_id", cnt++);
-            for (int i = 0; i < 10; i++) {
-                element.put("group_" + i, new Random().nextInt(eventNames.length));
+            for (int i = 0; i < GROUP_BY_FIELD_NUM; i++) {
+                element.put("group_" + i, new Random().nextInt(GROUP_BY_DIVERSITY_DEGREE));
             }
 
             element.put("event_name", eventName);

@@ -1,4 +1,6 @@
-package com.hansight.hes.engine.ext.noorder.state;
+package espercep.demo.state;
+
+import espercep.demo.state.queue.EventBeanQueueStateFacade;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,12 +61,13 @@ public class NoorderSequenceState<E extends Map> {
         lock.lock();
         try {
             Queue<E> queue = states.get(slot);
-            queue.offer(element);
-            EventBeanQueueState.addQueueState(ruleId, element, queue);
-            if (queue.isEmpty()) {
-                setBitState(slot, false);
-            } else {
-                setBitState(slot, true);
+            if (queue.offer(element)) {
+                EventBeanQueueStateFacade.addQueueState(ruleId, element, queue);
+                if (queue.isEmpty()) {
+                    setBitState(slot, false);
+                } else {
+                    setBitState(slot, true);
+                }
             }
         } finally {
             lock.unlock();
@@ -81,7 +84,7 @@ public class NoorderSequenceState<E extends Map> {
             } else {
                 setBitState(slot, true);
             }
-            EventBeanQueueState.removeQueueState(ruleId, element, queue);
+            EventBeanQueueStateFacade.removeQueueState(ruleId, element, queue);
             return element;
         } finally {
             lock.unlock();

@@ -22,8 +22,8 @@ import java.util.concurrent.Executors;
  *
  * @author yitian_song
  */
-public class WindowCountMetric_Multithread_3 {
-    private static final Logger logger = LoggerFactory.getLogger(WindowCountMetric_Multithread_3.class);
+public class WindowCountMetric_Multithread_4 {
+    private static final Logger logger = LoggerFactory.getLogger(WindowCountMetric_Multithread_4.class);
 
     public static void main(String[] args) throws Exception {
         // Set event representation
@@ -51,16 +51,16 @@ public class WindowCountMetric_Multithread_3 {
 
 
         try {
-            String epl = FileUtil.readResourceAsString("epl_case11_count_window.sql");
+            String epl = FileUtil.readResourceAsString("epl_case13_count_window.sql");
             EPStatement epStatement = epService.getEPAdministrator().createEPL(epl, "CountWindow#1");
             epStatement.addListener((newData, oldData, stat, rt) -> {
-                Arrays.stream(newData).forEach(data -> {
-                    Map result = (Map) data.getUnderlying();
-                    String countStr = Optional.ofNullable(result.get("win_count")).orElse("0").toString();
-                    MetricUtil.getCounter(result.get("event_name").toString() + " outputs").inc(Integer.parseInt(countStr));
-                    logger.info(JSONObject.toJSONString(result));
+                Arrays.stream(Optional.ofNullable(newData).orElse(new EventBean[]{})).forEach(data -> {
+                    MetricUtil.getCounter("Inbounds ").inc();
                 });
-                MetricUtil.getCounter("Detected patterns ").inc();
+
+                Arrays.stream(Optional.ofNullable(oldData).orElse(new EventBean[]{})).forEach(data -> {
+                    MetricUtil.getCounter("Outbounds ").inc();
+                });
             });
 
             sendEventsThroughDisruptor(epService.getEPRuntime());

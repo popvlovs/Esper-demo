@@ -106,7 +106,7 @@ public class WindowCountMetric_Multithread_2 {
         }
     }
 
-    private static class Consumer implements EventHandler<Map> {
+    public static class Consumer implements EventHandler<Map> {
         private int consumerId;
         private EPRuntime engine;
 

@@ -22,8 +22,13 @@ public class TimeWindowView_Metric_1 {
         // Set event representation
         Configuration configuration = new Configuration();
 
+        // Multi-thread may cause detection missing
+        //configuration.getEngineDefaults().getThreading().setThreadPoolInbound(true);
+        //configuration.getEngineDefaults().getThreading().setThreadPoolInboundCapacity(1000);
+        //configuration.getEngineDefaults().getThreading().setThreadPoolInboundNumThreads(Runtime.getRuntime().availableProcessors());
+
         // Define UDF
-        configuration.addPlugInSingleRowFunction("oncase", UserDefinedFunction.class.getName(), "onCase", ConfigurationPlugInSingleRowFunction.ValueCache.ENABLED);
+        configuration.addPlugInSingleRowFunction("onCase", UserDefinedFunction.class.getName(), "onCase", ConfigurationPlugInSingleRowFunction.ValueCache.ENABLED);
 
         EPServiceProvider epService = EPServiceProviderManager.getProvider("esper", configuration);
         Map<String, Object> eventType = new HashMap<>();
@@ -36,13 +41,16 @@ public class TimeWindowView_Metric_1 {
         epService.getEPAdministrator().getConfiguration().addEventType("TestEvent", eventType);
 
         try {
-            String epl1 = FileUtil.readResourceAsString("epl_case6_ext_timed.sql");
-            EPStatement epStatement = epService.getEPAdministrator().createEPL(epl1, "EPL#1");
-            epStatement.addListener((newData, oldData) -> {
+            String epl1 = FileUtil.readResourceAsString("epl_case10_ext_timed.sql");
+            EPStatement epStatement = epService.getEPAdministrator().createEPL(epl1, "EPL#1", 1);
+            epStatement.addListener((newData, oldData, statement, serviceProvider) -> {
+                int ruleId = (int) statement.getUserObject();
                 // Inbound
                 Arrays.stream(Optional.ofNullable(newData).orElse(new EventBean[]{})).forEach(
                         data -> {
                             MetricUtil.getCounter("Inbound").inc();
+                            Map<String, List<List<Map<String, Object>>>> completeEvents = UserDefinedFunction.findCompleteEvents(ruleId);
+                            MetricUtil.getCounter("Complete sequence of rule #" + ruleId).inc(completeEvents.values().stream().map(List::size).count());
                         }
                 );
 
@@ -50,7 +58,7 @@ public class TimeWindowView_Metric_1 {
                 Arrays.stream(Optional.ofNullable(oldData).orElse(new EventBean[]{})).forEach(
                         data -> {
                             MetricUtil.getCounter("Outbound").inc();
-                            UserDefinedFunction.onEventExpired((Map) data.getUnderlying());
+                            UserDefinedFunction.onEventExpired(ruleId, (Map) data.getUnderlying());
                         }
                 );
             });

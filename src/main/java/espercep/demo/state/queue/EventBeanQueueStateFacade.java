@@ -1,4 +1,4 @@
-package com.hansight.hes.engine.ext.noorder.state.queue;
+package espercep.demo.state.queue;
 
 import java.util.Map;
 import java.util.Queue;
@@ -12,18 +12,18 @@ import java.util.Set;
 public class EventBeanQueueStateFacade {
 
     public static Set<Queue<? extends Map>> getQueueState(int ruleId, Map element) {
-        return MapEventBeanQueueState.singleton().getQueueState(ruleId, element);
+        return BootstrapBeanQueueState.singleton().getQueueState(ruleId, element);
     }
 
     public static void addQueueState(int ruleId, Map element, Queue<? extends Map> queue) {
-        MapEventBeanQueueState.singleton().addQueueState(ruleId, element, queue);
+        BootstrapBeanQueueState.singleton().addQueueState(ruleId, element, queue);
     }
 
     public static void removeQueueState(int ruleId, Map element, Queue<? extends Map> queue) {
-        MapEventBeanQueueState.singleton().removeQueueState(ruleId, element, queue);
+        BootstrapBeanQueueState.singleton().removeQueueState(ruleId, element, queue);
     }
 
     public static void removeAllQueueState(int ruleId, Map element) {
-        MapEventBeanQueueState.singleton().removeAllQueueState(ruleId, element);
+        BootstrapBeanQueueState.singleton().removeAllQueueState(ruleId, element);
     }
 }

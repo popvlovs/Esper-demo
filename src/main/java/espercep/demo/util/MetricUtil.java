@@ -41,4 +41,15 @@ public class MetricUtil {
         }
         return (Counter) metricContainer.get(name);
     }
+
+    public static Meter getMeter(String name) {
+        if (!metricContainer.containsKey(name)) {
+            synchronized (metricContainer) {
+                if (!metricContainer.containsKey(name)) {
+                    metricContainer.put(name, metrics.meter(name));
+                }
+            }
+        }
+        return (Meter) metricContainer.get(name);
+    }
 }

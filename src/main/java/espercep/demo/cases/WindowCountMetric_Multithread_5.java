@@ -14,6 +14,7 @@ import espercep.demo.util.MetricUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.MessageFormat;
 import java.util.*;
 import java.util.concurrent.Executors;
 
@@ -22,8 +23,12 @@ import java.util.concurrent.Executors;
  *
  * @author yitian_song
  */
-public class WindowCountMetric_Multithread_3 {
-    private static final Logger logger = LoggerFactory.getLogger(WindowCountMetric_Multithread_3.class);
+public class WindowCountMetric_Multithread_5 {
+    private static final Logger logger = LoggerFactory.getLogger(WindowCountMetric_Multithread_5.class);
+
+    private static final int GROUP_BY_FIELD_NUM = 3;
+    private static final int RULE_NUM = 50;
+    private static final int GROUP_BY_DIVERSITY_DEGREE = 16;
 
     public static void main(String[] args) throws Exception {
         // Set event representation
@@ -44,7 +49,7 @@ public class WindowCountMetric_Multithread_3 {
         Map<String, Object> eventType = new HashMap<>();
         eventType.put("event_name", String.class);
         eventType.put("event_id", Long.class);
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < GROUP_BY_FIELD_NUM; i++) {
             eventType.put("group_"+i, Integer.class);
         }
         eventType.put("src_address", String.class);
@@ -52,24 +57,35 @@ public class WindowCountMetric_Multithread_3 {
         eventType.put("occur_time", Long.class);
         epService.getEPAdministrator().getConfiguration().addEventType("TestEvent", eventType);
 
-
         try {
-            String epl = FileUtil.readResourceAsString("epl_case11_count_window.sql");
-            EPStatement epStatement = epService.getEPAdministrator().createEPL(epl, "CountWindow#1");
-            epStatement.addListener((newData, oldData, stat, rt) -> {
-                Arrays.stream(newData).forEach(data -> {
-                    Map result = (Map) data.getUnderlying();
-                    String countStr = Optional.ofNullable(result.get("win_count")).orElse("0").toString();
-                    MetricUtil.getCounter(result.get("event_name").toString() + " outputs").inc(Integer.parseInt(countStr));
-                    logger.info(JSONObject.toJSONString(result));
+            for (int i = 0; i < RULE_NUM; i++) {
+                String epl = getRealEPL(FileUtil.readResourceAsString("epl_case15_count_window.sql"));
+                logger.info("create EPL: {}", epl);
+                final String ruleName = "CountWindow#" + i;
+                EPStatement epStatement = epService.getEPAdministrator().createEPL(epl, ruleName);
+                epStatement.addListener((newData, oldData, stat, rt) -> {
+                    Arrays.stream(newData).forEach(data -> {
+                        Map result = (Map) data.getUnderlying();
+                        String countStr = Optional.ofNullable(result.get("win_count")).orElse("0").toString();
+                        MetricUtil.getCounter(result.get("event_name").toString() + " outputs").inc(Integer.parseInt(countStr));
+                    });
+                    MetricUtil.getCounter("Detected patterns ").inc();
                 });
-                MetricUtil.getCounter("Detected patterns ").inc();
-            });
+            }
 
             sendEventsThroughDisruptor(epService.getEPRuntime());
         } catch (Exception e) {
             throw new RuntimeException("Error on execute eql", e);
         }
+    }
+
+    private static String getRealEPL(String epl) {
+        List<String> groupByKeys = new ArrayList<>();
+        for (int i = 0; i < GROUP_BY_FIELD_NUM; i++) {
+            groupByKeys.add("A.group_" + i);
+        }
+        String groupBy = groupByKeys.stream().reduce((lhs, rhs) -> lhs + "," + rhs).orElse("");
+        return MessageFormat.format(epl, groupBy);
     }
 
     private static void sendEventsThroughDisruptor(EPRuntime epRuntime) {
@@ -89,14 +105,14 @@ public class WindowCountMetric_Multithread_3 {
         long now = System.currentTimeMillis();
         long remainingEvents = Long.MAX_VALUE;
         long cnt = 0;
-        String[] eventNames = new String[]{"A", "B"};
+        String[] eventNames = new String[]{"A", "B", "C"};
         while (--remainingEvents > 0) {
             int randomVal = new Random().nextInt(eventNames.length);
             String eventName = eventNames[randomVal % eventNames.length];
             JSONObject element = new JSONObject();
             element.put("event_id", cnt++);
-            for (int i = 0; i < 10; i++) {
-                element.put("group_" + i, new Random().nextInt(eventNames.length));
+            for (int i = 0; i < GROUP_BY_FIELD_NUM; i++) {
+                element.put("group_" + i, new Random().nextInt(GROUP_BY_DIVERSITY_DEGREE));
             }
 
             element.put("event_name", eventName);
