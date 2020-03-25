@@ -1,4 +1,4 @@
-package espercep.demo.state;
+package com.hansight.hes.engine.ext.noorder.state;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,21 +12,27 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class NoorderSequenceGroupState<E extends Map> {
     private final Map<String, NoorderSequenceState<E>> groupState = new ConcurrentHashMap<>();
-    private int numTagChannel;
+    private int numEventSlots;
+    private int ruleId;
 
-    public NoorderSequenceGroupState(int numTagChannel) {
-        this.numTagChannel = numTagChannel;
+    public NoorderSequenceGroupState(int numEventSlots, int ruleId) {
+        this.numEventSlots = numEventSlots;
+        this.ruleId = ruleId;
     }
 
-    public void offer(String groupKey, int tagChannel, E element) {
-        getStateByGroupKey(groupKey).offer(tagChannel, element);
+    public void offer(String groupKey, int slot, E element) {
+        getStateByGroupKey(groupKey).offer(slot, element);
     }
+
+    /*public E poll(String groupKey, int slot) {
+        return getStateByGroupKey(groupKey).poll(slot);
+    }*/
 
     private NoorderSequenceState<E> getStateByGroupKey(String groupKey) {
         if (!groupState.containsKey(groupKey)) {
             synchronized (groupState) {
                 if (!groupState.containsKey(groupKey)) {
-                    NoorderSequenceState<E> state = new NoorderSequenceState<>(this.numTagChannel);
+                    NoorderSequenceState<E> state = new NoorderSequenceState<>(this.numEventSlots, this.ruleId);
                     groupState.put(groupKey, state);
                     return state;
                 }
@@ -34,10 +40,6 @@ public class NoorderSequenceGroupState<E extends Map> {
         }
         return groupState.get(groupKey);
     }
-
-    /*public E poll(String groupKey, int tagChannel) {
-        return getStateByGroupKey(groupKey).poll(tagChannel);
-    }*/
 
     public List<List<E>> pollCompleteSequence() {
         List<List<E>> completeSequence = new ArrayList<>();
