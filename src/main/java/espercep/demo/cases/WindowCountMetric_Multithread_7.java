@@ -22,6 +22,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Copyright: 瀚思安信（北京）软件技术有限公司，保留所有权利。
  *
+ * 使用自定义CountWindowGroupState实现count-window的demo
+ *
  * @author yitian_song
  */
 public class WindowCountMetric_Multithread_7 {

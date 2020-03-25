@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Copyright: 瀚思安信（北京）软件技术有限公司，保留所有权利。
  *
+ * 使用原生win:ext_timed_batch实现的demo
+ *
  * @author yitian_song
  */
 public class WindowCountMetric_Multithread_6 {
