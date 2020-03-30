@@ -20,7 +20,7 @@ public class Queue_Metric_1 {
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.submit(() -> {
             while (true) {
-                if (queue.poll() != null) {
+                if (queue.take() != null) {
                     MetricUtil.getCounter("Consumed").inc();
                 }
             }

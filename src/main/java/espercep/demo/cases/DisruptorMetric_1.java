@@ -1,20 +1,22 @@
 package espercep.demo.cases;
 
-import com.alibaba.fastjson.JSONObject;
-import com.espertech.esper.client.*;
-import com.lmax.disruptor.*;
+import com.lmax.disruptor.EventFactory;
+import com.lmax.disruptor.EventHandler;
+import com.lmax.disruptor.EventTranslator;
+import com.lmax.disruptor.YieldingWaitStrategy;
 import com.lmax.disruptor.dsl.Disruptor;
 import com.lmax.disruptor.dsl.ProducerType;
-import espercep.demo.util.FileUtil;
+import espercep.demo.util.ArgsUtil;
+import espercep.demo.util.CmdLineOptions;
 import espercep.demo.util.MetricUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.text.MessageFormat;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Copyright: 瀚思安信（北京）软件技术有限公司，保留所有权利。
@@ -24,66 +26,29 @@ import java.util.concurrent.Executors;
 public class DisruptorMetric_1 {
 
     private static final Logger logger = LoggerFactory.getLogger(DisruptorMetric_1.class);
+    private static CmdLineOptions options;
 
     public static void main(String[] args) throws Exception {
-        // Set event representation
-        Configuration configuration = new Configuration();
+        options = ArgsUtil.getArg(args);
+        logger.info("Using args as {}", options);
 
-        // Multi-thread may cause detection missing
-        // configuration.getEngineDefaults().getThreading().setThreadPoolInbound(true);
-        // configuration.getEngineDefaults().getThreading().setThreadPoolInboundCapacity(1000);
-        // configuration.getEngineDefaults().getThreading().setThreadPoolInboundNumThreads(Runtime.getRuntime().availableProcessors());
-
-        //configuration.getEngineDefaults().getExecution().setDisableLocking(true);
-
-        String epl = FileUtil.readResourceAsString("epl_case7_follow_by_100.sql");
-
-        // 1. 按 cpu 核数初始化esper engine线程
-        int cpuCores = Runtime.getRuntime().availableProcessors();
-        CountDownLatch cdt = new CountDownLatch(cpuCores);
-
-        final List<Consumer> workerHandlers = new ArrayList<>(cpuCores);
-        ExecutorService executorService = Executors.newFixedThreadPool(cpuCores);
-        int numTaskPerCore = (0xFF+1) / cpuCores;
-        for (int i = 0; i < cpuCores; ++i) {
-            final int engineIndex = i;
-            executorService.submit(() -> {
-                EPServiceProvider epService = EPServiceProviderManager.getProvider("esper#" + engineIndex, configuration);
-                Map<String, Object> eventType = new HashMap<>();
-                eventType.put("event_name", String.class);
-                eventType.put("event_id", Long.class);
-                eventType.put("src_address", String.class);
-                eventType.put("dst_address", String.class);
-                eventType.put("occur_time", Long.class);
-                epService.getEPAdministrator().getConfiguration().addEventType("TestEvent", eventType);
-
-                try {
-                    for (int j = engineIndex * numTaskPerCore; j < (engineIndex + 1) * numTaskPerCore; ++j) {
-                        String regularEpl = MessageFormat.format(epl, j, j);
-                        final String eplName = "Engine#" + j;
-                        EPStatement epStatement = epService.getEPAdministrator().createEPL(regularEpl, eplName);
-                        epStatement.addListener((newData, oldData, stat, rt) -> {
-                            MetricUtil.getCounter("Detected patterns " + eplName).inc();
-                            //System.out.println("selected row: " + JSONObject.toJSONString(newData[0].getUnderlying()));
-                        });
-                    }
-                    workerHandlers.add(new Consumer(engineIndex, epService.getEPRuntime()));
-                    cdt.countDown();
-                } catch (Exception e) {
-                    throw new RuntimeException("Error on execute eql", e);
-                }
-            });
+        final List<Consumer> workerHandlers = new ArrayList<>(options.getCoreNum());
+        for (int engineIndex = 0; engineIndex < options.getCoreNum(); ++engineIndex) {
+            try {
+                workerHandlers.add(new Consumer(engineIndex));
+            } catch (Exception e) {
+                throw new RuntimeException("Error on execute eql", e);
+            }
         }
-        cdt.await();
 
         // 2. 创建 Disruptor 用于线程间通信
         // Send event to consumer thread
-        Disruptor<Map> disruptor = new Disruptor<>(new EventFactory<Map>() {
+        Disruptor<LongEventBeanWrapper> disruptor = new Disruptor<>(new EventFactory<LongEventBeanWrapper>() {
             @Override
-            public Map newInstance() {
-                return new HashMap<String, Object>();
+            public LongEventBeanWrapper newInstance() {
+                return new LongEventBeanWrapper();
             }
-        }, 2 << 18, Executors.defaultThreadFactory(), ProducerType.SINGLE, new YieldingWaitStrategy());
+        }, 2 << 13, Executors.defaultThreadFactory(), ProducerType.SINGLE, new YieldingWaitStrategy());
         disruptor.handleEventsWith(workerHandlers.toArray(new Consumer[]{}));
         disruptor.start();
 
@@ -93,40 +58,48 @@ public class DisruptorMetric_1 {
 
     private static void sendRandomEvents(Disruptor disruptor) {
         long remainingEvents = Long.MAX_VALUE;
-        long cnt = 0;
-        String[] eventNames = new String[]{"A", "B"};
         while (--remainingEvents > 0) {
-            int randomVal = new Random().nextInt(eventNames.length);
-            JSONObject element = new JSONObject();
-            element.put("event_id", cnt++);
-            element.put("event_name", eventNames[randomVal % eventNames.length]);
-            element.put("src_address", "172.16.100." + cnt % 0xFF);
-            element.put("dst_address", "172.16.100." + cnt % 0xFF);
-            element.put("occur_time", System.currentTimeMillis() + randomVal);
+            /* 这里有一个很有趣的现象：
+             * 当不计算随机数时，整体的eps为100w；
+             * 而计算随机数时，按理需要花费更多的cpu，性能应该下降才对，然而实际上并没有下降；
+             * 猜测的原因如下，不计算随机数 -> publish速度太快 -> 消费者线程跟不上 -> 生产者线程经常parkNano -> 性能下降
+             * 而计算随机数时 -> publish速度较慢 -> 生产者消费者较为均衡 -> 生产者线程能够非阻塞式的发出数据 -> 性能上升*/
+            int randomVal = new Random().nextInt(2);
             MetricUtil.getConsumeRateMetric().mark();
 
-            disruptor.publishEvent(new EventTranslator<Map>() {
+            disruptor.publishEvent(new EventTranslator<LongEventBeanWrapper>() {
                 @Override
-                public void translateTo(Map map, long sequence) {
-                    map.putAll(element);
+                public void translateTo(LongEventBeanWrapper map, long sequence) {
+                    map.setValue(sequence);
                 }
             });
         }
     }
 
-    private static class Consumer implements EventHandler<Map> {
-        private int consumerId;
-        private EPRuntime engine;
+    private static class LongEventBeanWrapper {
+        private long value;
 
-        public Consumer(int consumerId, EPRuntime engine) {
+        public long getValue() {
+            return value;
+        }
+
+        public void setValue(long value) {
+            this.value = value;
+        }
+    }
+
+    public static class Consumer implements EventHandler<LongEventBeanWrapper> {
+        private int consumerId;
+
+        public Consumer(int consumerId) {
             this.consumerId = consumerId;
-            this.engine = engine;
         }
 
         @Override
-        public void onEvent(Map map, long sequence, boolean endOfBatch) throws Exception {
-            MetricUtil.getCounter("total consumed engine#"+this.consumerId).inc();
-            //engine.sendEvent(map, "TestEvent");
+        public void onEvent(LongEventBeanWrapper map, long sequence, boolean endOfBatch) throws Exception {
+            MetricUtil.getCounter("total consumed engine#" + this.consumerId).inc();
+            // engine.sendEvent(map.getInnerMap(), "TestEvent");
+            TimeUnit.NANOSECONDS.toMillis(1);
         }
     }
 }

@@ -122,7 +122,7 @@ public class WindowCountMetric_Multithread_6 {
             public MapEventBeanWrapper newInstance() {
                 return new MapEventBeanWrapper();
             }
-        }, 2 << 18, Executors.defaultThreadFactory(), ProducerType.SINGLE, new YieldingWaitStrategy());
+        }, 2 << 13, Executors.defaultThreadFactory(), ProducerType.SINGLE, new YieldingWaitStrategy());
         disruptor.handleEventsWith(workerHandlers.toArray(new Consumer[]{}));
         disruptor.start();
 
