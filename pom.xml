@@ -46,6 +46,10 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
+        <repository>
+            <id>clojars.org</id>
+            <url>http://clojars.org/repo</url>
+        </repository>
     </repositories>
 
     <!--
@@ -89,7 +93,7 @@
                             <transformers>
                                 <transformer
                                         implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>espercep.demo.cases.WindowCountMetric_Multithread_6</mainClass>
+                                    <mainClass>espercep.demo.cases.esper.WindowCountMetric_Multithread_6</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
@@ -229,5 +233,27 @@
             <artifactId>args4j</artifactId>
             <version>2.33</version>
         </dependency>
+
+        <dependency>
+            <groupId>com.esotericsoftware</groupId>
+            <artifactId>kryo</artifactId>
+            <version>5.0.0-RC5</version>
+        </dependency>
+        <dependency>
+            <groupId>org.zeromq</groupId>
+            <artifactId>jeromq</artifactId>
+            <version>0.5.2</version>
+        </dependency>
+        <dependency>
+            <groupId>jnanomsg</groupId>
+            <artifactId>jnanomsg</artifactId>
+            <version>0.4.3</version>
+        </dependency>
+        <dependency>
+            <groupId>net.openhft</groupId>
+            <artifactId>chronicle-queue</artifactId>
+            <version>5.19.5</version>
+        </dependency>
+
     </dependencies>
 </project>

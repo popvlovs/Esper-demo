@@ -6,6 +6,7 @@ import com.lmax.disruptor.WaitStrategy;
 import com.lmax.disruptor.YieldingWaitStrategy;
 import org.kohsuke.args4j.Option;
 
+import java.security.MessageDigest;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executors;
@@ -54,6 +55,9 @@ public class CmdLineOptions {
 
     @Option(name = "-eventNum", aliases = {"-event"}, usage = "测试的事件数量")
     private Long eventNum;
+
+    @Option(name = "-chronicle-consumer-id", aliases = {"-chronicle"}, usage = "Chronicle消费者进程编号")
+    private String chronicleId;
 
     @Override
     public String toString() {
@@ -190,5 +194,20 @@ public class CmdLineOptions {
 
     public void setEventNum(Long eventNum) {
         this.eventNum = eventNum;
+    }
+
+    public String getChronicleId() {
+        return Optional.ofNullable(chronicleId).orElseGet(() -> {
+            try {
+                MessageDigest digest = MessageDigest.getInstance("MD5");
+                return new String(digest.digest(Long.toString(System.nanoTime()).getBytes()));
+            } catch (Exception e) {
+                return "FixedChronicleNum";
+            }
+        });
+    }
+
+    public void setChronicleId(String chronicleId) {
+        this.chronicleId = chronicleId;
     }
 }
