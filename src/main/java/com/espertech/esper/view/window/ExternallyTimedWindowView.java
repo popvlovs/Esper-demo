@@ -293,7 +293,7 @@ public class ExternallyTimedWindowView extends ViewSupport implements DataWindow
         // 在非GroupBy场景下，直接清空窗口内容
         // GroupBy场景下维持原逻辑
         if (isGroupedExtTimeWindow) {
-            ((GroupByTimeWindow) this.timeWindow).clearAll(groupByKeys);
+            ((GroupWindow) this.timeWindow).clearAll(groupByKeys);
         } else {
             this.timeWindow.clearAll();
         }

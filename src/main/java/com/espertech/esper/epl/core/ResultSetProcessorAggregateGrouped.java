@@ -59,6 +59,9 @@ public class ResultSetProcessorAggregateGrouped implements ResultSetProcessor, A
     private ResultSetProcessorGroupedOutputFirstHelper outputFirstHelper;
 
     public ResultSetProcessorAggregateGrouped(ResultSetProcessorAggregateGroupedFactory prototype, SelectExprProcessor selectExprProcessor, OrderByProcessor orderByProcessor, AggregationService aggregationService, AgentInstanceContext agentInstanceContext) {
+        // 在context中加入aggregationService引用，用于快速清理aggregator队列
+        agentInstanceContext.addAggregationService(aggregationService);
+
         this.prototype = prototype;
         this.selectExprProcessor = selectExprProcessor;
         this.orderByProcessor = orderByProcessor;
@@ -78,6 +81,11 @@ public class ResultSetProcessorAggregateGrouped implements ResultSetProcessor, A
         } else if (prototype.isOutputFirst()) {
             outputFirstHelper = prototype.getResultSetProcessorHelperFactory().makeRSGroupedOutputFirst(agentInstanceContext, prototype.getGroupKeyNodes(), prototype.getOptionalOutputFirstConditionFactory(), null, -1);
         }
+    }
+
+
+    public AgentInstanceContext getAgentInstanceContext() {
+        return agentInstanceContext;
     }
 
     public void setAgentInstanceContext(AgentInstanceContext agentInstanceContext) {

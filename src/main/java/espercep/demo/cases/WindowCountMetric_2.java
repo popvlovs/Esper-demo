@@ -125,12 +125,12 @@ public class WindowCountMetric_2 {
             element.put("receive_time", now);
             element.put("occur_time", now - 1000L);
             element.put("dst_address", "61.139.100." + rand);
-            element.put("src_port", rand + 30000);
+            element.put("src_port", new Random().nextInt(255) + 30000);
             element.put("end_time", now + 1000L);
             element.put("first_time", now);
             element.put("spin_tag", 0L);
             element.put("alarm_level", 1);
-            element.put("src_address", "172.16.0." + rand);
+            element.put("src_address", "172.16.0." + new Random().nextInt(255));
 
             MetricUtil.getConsumeRateMetric().mark();
 

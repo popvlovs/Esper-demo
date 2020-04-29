@@ -20,6 +20,7 @@ import com.espertech.esper.epl.expression.core.ExprNode;
 import com.espertech.esper.epl.expression.core.ExprNodeUtility;
 import com.espertech.esper.epl.expression.time.ExprTimePeriodEvalDeltaConst;
 import com.espertech.esper.epl.expression.time.ExprTimePeriodEvalDeltaConstFactory;
+import com.espertech.esper.util.FeatureToggle;
 import com.espertech.esper.util.JavaClassHelper;
 import com.espertech.esper.view.*;
 
@@ -81,6 +82,12 @@ public class ExternallyTimedWindowViewFactory implements DataWindowViewFactory, 
 
     public boolean canReuse(View view, AgentInstanceContext agentInstanceContext) {
         if (!(view instanceof ExternallyTimedWindowView)) {
+            return false;
+        }
+
+        // 当开启aggregator驱动extTimedView purge的特性后
+        // 必须关闭ExternallyTimedWindowView复用
+        if (FeatureToggle.isDiscardExtTimedWindowOnAggOutput()) {
             return false;
         }
 

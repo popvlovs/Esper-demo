@@ -12,11 +12,11 @@ import java.util.Map;
 /**
  * 自定义Group by timed-window，满足having-count条件后翻转window，优化内存使用和GC
  */
-public class GroupByTimeWindow extends TimeWindow {
+public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
 
     private ExprEvaluator[] groupByEvaluators;
     private ExprNode[] groupByNodes;
-    protected AgentInstanceContext agentInstanceContext;
+    private AgentInstanceContext agentInstanceContext;
     private Map<Object, ArrayDeque<EventBean>> groupedWindow;
 
     public GroupByTimeWindow(ExprEvaluator[] groupByEvaluators, ExprNode[] groupByNodes, AgentInstanceContext agentInstanceContext) {
@@ -46,7 +46,7 @@ public class GroupByTimeWindow extends TimeWindow {
         return succeed;
     }
 
-    protected void removeFromGroup(EventBean event) {
+    private void removeFromGroup(EventBean event) {
         Object groupByKey = getGroupByKey(false, event);
         if (groupedWindow.containsKey(groupByKey)) {
             groupedWindow.get(groupByKey).remove(event);
@@ -60,10 +60,20 @@ public class GroupByTimeWindow extends TimeWindow {
     }
 
     @Override
+    public ArrayDeque<EventBean> expireEvents(long expireBefore) {
+        ArrayDeque<EventBean> expiredEvents = super.expireEvents(expireBefore);
+        if (expiredEvents != null) {
+            expiredEvents.forEach(this::removeFromGroup);
+        }
+        return expiredEvents;
+    }
+
+    @Override
     public void clearAll() {
         throw new RuntimeException("Unsupported method call");
     }
 
+    @Override
     public void clearAll(Object... groupByKeys) {
         for (Object groupByKey : groupByKeys) {
             if (groupedWindow.containsKey(groupByKey)) {

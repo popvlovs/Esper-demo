@@ -38,11 +38,14 @@ public class ResultSetProcessorAggregateAll implements ResultSetProcessor {
     private final SelectExprProcessor selectExprProcessor;
     private final OrderByProcessor orderByProcessor;
     private final AggregationService aggregationService;
-    private ExprEvaluatorContext exprEvaluatorContext;
+    private AgentInstanceContext exprEvaluatorContext;
     private ResultSetProcessorAggregateAllOutputLastHelper outputLastUnordHelper;
     private ResultSetProcessorAggregateAllOutputAllHelper outputAllUnordHelper;
 
     public ResultSetProcessorAggregateAll(ResultSetProcessorAggregateAllFactory prototype, SelectExprProcessor selectExprProcessor, OrderByProcessor orderByProcessor, AggregationService aggregationService, AgentInstanceContext agentInstanceContext) {
+        // 在context中加入aggregationService引用，用于快速清理aggregator队列
+        agentInstanceContext.addAggregationService(aggregationService);
+
         this.prototype = prototype;
         this.selectExprProcessor = selectExprProcessor;
         this.orderByProcessor = orderByProcessor;
@@ -50,6 +53,14 @@ public class ResultSetProcessorAggregateAll implements ResultSetProcessor {
         this.exprEvaluatorContext = agentInstanceContext;
         this.outputLastUnordHelper = prototype.isEnableOutputLimitOpt() && prototype.isOutputLast() ? prototype.getResultSetProcessorHelperFactory().makeRSAggregateAllOutputLast(this, agentInstanceContext) : null;
         this.outputAllUnordHelper = prototype.isEnableOutputLimitOpt() && prototype.isOutputAll() ? prototype.getResultSetProcessorHelperFactory().makeRSAggregateAllOutputAll(this, agentInstanceContext) : null;
+    }
+
+    public AgentInstanceContext getExprEvaluatorContext() {
+        return exprEvaluatorContext;
+    }
+
+    public AggregationService getAggregationService() {
+        return aggregationService;
     }
 
     public void setAgentInstanceContext(AgentInstanceContext context) {

@@ -12,6 +12,7 @@ package com.espertech.esper.core.context.util;
 
 import com.espertech.esper.core.context.mgr.AgentInstanceFilterProxy;
 import com.espertech.esper.core.service.*;
+import com.espertech.esper.epl.agg.service.AggregationService;
 import com.espertech.esper.epl.expression.core.ExprEvaluatorContext;
 import com.espertech.esper.epl.script.AgentInstanceScriptContext;
 import com.espertech.esper.epl.spec.StatementSpecCompiled;
@@ -44,6 +45,12 @@ public class AgentInstanceContext implements ExprEvaluatorContext {
      */
     private Set<ExternallyTimedWindowView> extTimedWindowView = Collections.synchronizedSet(new HashSet<>());
 
+    /**
+     * 用于在ExternallyTimedWindowView清理Distinct队列中事件时，快速获取关联aggregator的引用
+     * 并同步从对应的aggregator中清除事件
+     */
+    private Set<AggregationService> aggregationServices = Collections.synchronizedSet(new HashSet<>());
+
     private StatementSpecCompiled statementSpec;
 
     public AgentInstanceContext(StatementContext statementContext, EPStatementAgentInstanceHandle epStatementAgentInstanceHandle, int agentInstanceId, AgentInstanceFilterProxy agentInstanceFilterProxy, MappedEventBean agentInstanceProperties, AgentInstanceScriptContext agentInstanceScriptContext) {
@@ -73,6 +80,14 @@ public class AgentInstanceContext implements ExprEvaluatorContext {
 
     public Set<ExternallyTimedWindowView> getExtTimedWindowView() {
         return extTimedWindowView;
+    }
+
+    public void addAggregationService(AggregationService aggregationService) {
+        this.aggregationServices.add(aggregationService);
+    }
+
+    public Set<AggregationService> getAggregationServices() {
+        return aggregationServices;
     }
 
     public void setStatementSpec(StatementSpecCompiled statementSpec) {
