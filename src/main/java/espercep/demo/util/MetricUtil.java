@@ -2,12 +2,10 @@ package espercep.demo.util;
 
 import com.codahale.metrics.*;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Copyright: 瀚思安信（北京）软件技术有限公司，保留所有权利。
@@ -53,6 +51,28 @@ public class MetricUtil {
 
     public static void reportNow() {
         reporter.report();
+    }
+
+    public static Timer getTimer(String name) {
+        if (!metricContainer.containsKey(name)) {
+            synchronized (metricContainer) {
+                if (!metricContainer.containsKey(name)) {
+                    metricContainer.put(name, metrics.timer(name));
+                }
+            }
+        }
+        return (Timer) metricContainer.get(name);
+    }
+
+    public static Histogram getHistogram(String name) {
+        if (!metricContainer.containsKey(name)) {
+            synchronized (metricContainer) {
+                if (!metricContainer.containsKey(name)) {
+                    metricContainer.put(name, metrics.histogram(name));
+                }
+            }
+        }
+        return (Histogram) metricContainer.get(name);
     }
 
     public static Counter getCounter(String name) {

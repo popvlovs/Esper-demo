@@ -221,4 +221,12 @@ public class UserDefinedFunction {
     public static Map<String, Object> countWindow(String eventId, long occurTime, EPLMethodInvocationContext context, Object... groupByKeys) {
         return Collections.emptyMap();
     }
+
+    public static boolean belongs(String argA, String argB) {
+        return true;
+    }
+
+    public static boolean contains(String argA, String argB) {
+        return true;
+    }
 }

@@ -6,6 +6,7 @@ import com.lmax.disruptor.WaitStrategy;
 import com.lmax.disruptor.YieldingWaitStrategy;
 import org.kohsuke.args4j.Option;
 
+import javax.annotation.Nonnull;
 import java.security.MessageDigest;
 import java.util.Objects;
 import java.util.Optional;
@@ -196,15 +197,17 @@ public class CmdLineOptions {
         this.eventNum = eventNum;
     }
 
-    public String getChronicleId() {
-        return Optional.ofNullable(chronicleId).orElseGet(() -> {
+    private static String RANDOM_CHRONICLE_ID;
+    static {
             try {
-                MessageDigest digest = MessageDigest.getInstance("MD5");
-                return new String(digest.digest(Long.toString(System.nanoTime()).getBytes()));
+                RANDOM_CHRONICLE_ID = MD5Util.md5(Long.toString(System.currentTimeMillis()));
             } catch (Exception e) {
-                return "FixedChronicleNum";
+                RANDOM_CHRONICLE_ID = "FixedChronicleNum";
             }
-        });
+    }
+
+    public String getChronicleId() {
+        return Optional.ofNullable(chronicleId).orElse(RANDOM_CHRONICLE_ID);
     }
 
     public void setChronicleId(String chronicleId) {

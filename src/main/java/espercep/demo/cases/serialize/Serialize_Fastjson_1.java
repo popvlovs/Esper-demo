@@ -33,6 +33,7 @@ public class Serialize_Fastjson_1 {
                     while (cnt++ < eventNum) {
                         data.add(mock());
                     }
+                    logger.info("Start to test serialize/deserialize perf");
                     long nanoTime = System.nanoTime();
                     List<String> serialize = new ArrayList<>(data.size());
                     for (Map item : data) {
@@ -46,7 +47,6 @@ public class Serialize_Fastjson_1 {
                         deserialize.add(JSONObject.parseObject(item, Map.class));
                     }
                     logger.info("Deserialization using millis: {}", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - nanoTime));
-
                 } catch (Exception e) {
                     throw new RuntimeException("Error on execute eql", e);
                 } finally {

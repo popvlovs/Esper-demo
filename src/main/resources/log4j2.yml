@@ -1,0 +1,176 @@
+Configuration:
+  monitorinterval: 60
+  properties:
+      property:
+        - name: app-name
+          value: sae_core
+
+  Appenders:
+    Console:  #输出到控制台
+      name: CONSOLE #Appender命名
+      target: SYSTEM_OUT
+      PatternLayout:
+        pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS}:%4p %t (%c{1.1.1.1.1.1.*}:%L) - %m%n"
+    RollingFile: # 输出到文件，超过256MB归档
+      - name: LOG_FILE
+        fileName: ./logs/${app-name}.log
+        filePattern: "./logs/${app-name}-%d{yyyy-MM-dd}-%i.log"
+        PatternLayout:
+          pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS}:%4p %t (%F:%L) - %m%n"
+        Policies:
+          SizeBasedTriggeringPolicy:
+            size: "10MB"
+          TimeBasedTriggeringPolicy:
+            interval: 1 # rolling per day
+            modulate: true #
+        DefaultRolloverStrategy:
+          max: 7
+          Delete:
+            basePath: ./logs
+            IfLastModified:
+              age: 7d
+            IfFileName:
+              glob: ${app-name}-*.log
+      - name: SCRAMBLE_FILE
+        fileName: ./logs/scramble.log
+        filePattern: "./logs/scramble-%d{yyyy-MM-dd}-%i.log"
+        PatternLayout:
+          pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS}:%4p %t (%F:%L) - %m%n"
+        Policies:
+          SizeBasedTriggeringPolicy:
+            size: "10MB"
+          TimeBasedTriggeringPolicy:
+            interval: 1 # rolling per day
+            modulate: true #
+        DefaultRolloverStrategy:
+          max: 7
+          Delete:
+            basePath: ./logs
+            IfLastModified:
+              age: 7d
+            IfFileName:
+              glob: scramble-*.log
+      - name: METRICS_FILE
+        fileName: ./logs/metrics.log
+        filePattern: "./logs/metrics-%d{yyyy-MM-dd}-%i.log"
+        PatternLayout:
+          pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS}:%4p %t - %m%n"
+        Policies:
+          SizeBasedTriggeringPolicy:
+            size: "10MB"
+          TimeBasedTriggeringPolicy:
+            interval: 1 # rolling per day
+            modulate: true #
+        DefaultRolloverStrategy:
+          max: 7
+          Delete:
+            basePath: ./logs
+            IfLastModified:
+              age: 7d
+            IfFileName:
+              glob: metrics-*.log
+      - name: ZOOKEEPER_FILE
+        fileName: ./logs/zk.log
+        filePattern: "./logs/zk-%d{yyyy-MM-dd}-%i.log"
+        PatternLayout:
+          pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS}:%4p %t - %m%n"
+        Policies:
+          SizeBasedTriggeringPolicy:
+            size: "10MB"
+          TimeBasedTriggeringPolicy:
+            interval: 1 # rolling per day
+            modulate: true #
+        DefaultRolloverStrategy:
+          max: 7
+          Delete:
+            basePath: ./logs
+            IfLastModified:
+              age: 1d
+            IfFileName:
+              glob: zk-*.log
+      - name: FEEDBACK_FILE
+        fileName: ./logs/feedback.log
+        filePattern: "./logs/feedback-%d{yyyy-MM-dd}-%i.log.gz"
+        PatternLayout:
+          pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS}:%4p %t - %m%n"
+        Policies:
+          SizeBasedTriggeringPolicy:
+            size: "10MB"
+          TimeBasedTriggeringPolicy:
+            interval: 1 # rolling per day
+            modulate: true #
+        DefaultRolloverStrategy:
+          max: 7
+          Delete:
+            basePath: ./logs
+            IfLastModified:
+              age: 7d
+            IfFileName:
+              glob: feedback-*.log
+      Worker:
+        - name: WORKER_FILE
+          fileName: ./logs/worker/worker-{0}.log
+          filePattern: "./logs/worker/worker-{0}-%d{yyyy-MM-dd}-%i.log.gz"
+          PatternLayout:
+            pattern: "%d{yyyy-MM-dd HH:mm:ss,SSS}:%4p %t - %m%n"
+            Policies:
+              SizeBasedTriggeringPolicy:
+                size: "10MB"
+              TimeBasedTriggeringPolicy:
+                interval: 1 # rolling per day
+                modulate: true #
+            DefaultRolloverStrategy:
+              max: 7
+              Delete:
+                basePath: ./logs
+                IfLastModified:
+                  age: 7d
+                IfFileName:
+                  glob: worker-{0}-*.log
+  Loggers:
+    Root:
+      level: warn
+      AppenderRef:
+        - ref: LOG_FILE
+    Logger: #单独设置某些包的输出级别
+      - name: com.hansight.hes #复数加上-
+        additivity: false #去除重复的log
+        level: info
+        AppenderRef:
+          - ref: LOG_FILE
+      - name: com.espertech #复数加上-
+        additivity: false #去除重复的log
+        level: warn
+        AppenderRef:
+          - ref: LOG_FILE
+      - name: com.hansight.hes.cluster #复数加上-
+        additivity: false #去除重复的log
+        level: info
+        AppenderRef:
+          - ref: SCRAMBLE_FILE
+      - name: com.hansight.hes.manager.ZkManager #复数加上-
+        additivity: false #去除重复的log
+        level: info
+        AppenderRef:
+          - ref: SCRAMBLE_FILE
+      - name: com.hansight.hes.metrics.MetricsCenter
+        additivity: false #去除重复的log
+        level: info
+        AppenderRef:
+          - ref: METRICS_FILE
+      - name: org.apache.curator
+        additivity: false #去除重复的log
+        level: error
+        AppenderRef:
+          - ref: ZOOKEEPER_FILE
+      - name: com.hansight.hes.feedback.FeedBackManager #复数加上-
+        additivity: false #去除重复的log
+        level: info
+        AppenderRef:
+          - ref: FEEDBACK_FILE
+      - name: com.hansight.hes.metrics.MetricsCenter#*
+        additivity: false
+        level: info
+        AppenderRef:
+          - ref: WORKER_FILE
+
