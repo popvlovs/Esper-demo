@@ -11,8 +11,10 @@
 package com.espertech.esper.collection;
 
 import com.espertech.esper.client.EventBean;
+import com.espertech.esper.epl.expression.time.ExprTimePeriodEvalDeltaConst;
 import com.espertech.esper.view.DataWindowViewFactory;
 import com.espertech.esper.view.ViewDataVisitor;
+import espercep.demo.util.MetricUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +36,8 @@ public class TimeWindow implements Iterable {
     private ArrayDeque<TimeWindowPair> window;
     private Map<EventBean, TimeWindowPair> reverseIndex;
     private int size;
+
+    private ExprTimePeriodEvalDeltaConst timeDelta;
     /**
      * Ctor.
      *
@@ -46,6 +50,15 @@ public class TimeWindow implements Iterable {
         if (isSupportRemoveStream) {
             reverseIndex = new HashMap<EventBean, TimeWindowPair>();
         }
+        MetricUtil.getGauge("window size", () -> this.window::size);
+        MetricUtil.getGauge("size", () -> () -> size);
+    }
+
+    /**
+     * Set time window delta
+     */
+    public void setTimeDelta(ExprTimePeriodEvalDeltaConst timeDelta) {
+        this.timeDelta = timeDelta;
     }
 
     /**
@@ -104,7 +117,13 @@ public class TimeWindow implements Iterable {
             return true;
         }
         //保证队列中数据必然是有序的，乱序数据直接丢弃
-        if (lastPair.getTimestamp()-60000 <= timestamp) {
+        boolean isOutOfWindow;
+        if (this.timeDelta != null) {
+            isOutOfWindow = lastPair.getTimestamp() - timestamp > this.timeDelta.deltaSubtract(lastPair.getTimestamp());
+        } else {
+            isOutOfWindow = lastPair.getTimestamp() - timestamp > 60000L;
+        }
+        if (!isOutOfWindow) {
             // Append to window
             TimeWindowPair pair = new TimeWindowPair(timestamp, bean);
             if (reverseIndex != null) {
@@ -113,11 +132,11 @@ public class TimeWindow implements Iterable {
             window.add(pair);
             size++;
             return true;
-        }
-        else {
-            if(logger.isDebugEnabled())
+        } else {
+            if (logger.isDebugEnabled()) {
                 logger.debug("发现乱序数据尝试添加进窗口。当前窗口数据数量：{}, 待添加数据时间戳：{}. 窗口数据最大时间戳：{}", window.size(), timestamp, getNewestTimestamp());
                 logger.debug("{} ## {}", bean.getUnderlying(), window.getLast().getEventHolder());
+            }
         }
         return false;
     }

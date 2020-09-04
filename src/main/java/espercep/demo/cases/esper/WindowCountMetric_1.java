@@ -2,6 +2,7 @@ package espercep.demo.cases.esper;
 
 import com.alibaba.fastjson.JSONObject;
 import com.espertech.esper.client.*;
+import com.espertech.esper.util.FeatureToggle;
 import espercep.demo.util.FileUtil;
 import espercep.demo.util.MetricUtil;
 import org.slf4j.Logger;
@@ -10,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Copyright: 瀚思安信（北京）软件技术有限公司，保留所有权利。
@@ -25,6 +27,9 @@ public class WindowCountMetric_1 {
         // Set event representation
         Configuration configuration = new Configuration();
 
+        FeatureToggle.setNumDistinctEventRetained(10);
+        FeatureToggle.setDiscardExtTimedWindowOnAggOutput(true);
+
         EPServiceProvider epService = EPServiceProviderManager.getProvider("esper-engine", configuration);
         Map<String, Object> eventType = new HashMap<>();
         eventType.put("event_name", String.class);
@@ -35,6 +40,7 @@ public class WindowCountMetric_1 {
         epService.getEPAdministrator().getConfiguration().addEventType("TestEvent", eventType);
 
         String epl = FileUtil.readResourceAsString("epl_case18_window_count.sql");
+        System.out.println(epl);
 
         EPStatement epStatement = epService.getEPAdministrator().createEPL(epl, "Rule#1");
         epStatement.addListener((newData, oldData, stat, rt) -> {
@@ -45,18 +51,21 @@ public class WindowCountMetric_1 {
         sendRandomEvents(epService.getEPRuntime());
     }
 
+    private static Random rand = new Random();
+
     private static void sendRandomEvents(EPRuntime epRuntime) {
         long remainingEvents = Long.MAX_VALUE;
         long cnt = 0;
         String[] eventNames = new String[]{"A", "B"};
         while (--remainingEvents > 0) {
-            int randomVal = new Random().nextInt(eventNames.length);
+            int randomVal = rand.nextInt(eventNames.length);
             JSONObject element = new JSONObject();
             element.put("event_id", cnt++);
             element.put("event_name", eventNames[randomVal % eventNames.length]);
             element.put("src_address", "172.16.100." + cnt % 0xFF);
+            element.put("src_address", null);
             element.put("dst_address", "172.16.100." + cnt % 0xFF);
-            element.put("occur_time", System.currentTimeMillis() + randomVal);
+            element.put("occur_time", System.currentTimeMillis() + rand.nextInt(60000) - TimeUnit.SECONDS.toMillis(1));// + randomVal);
             MetricUtil.getConsumeRateMetric().mark();
             epRuntime.sendEvent(element, "TestEvent");
         }

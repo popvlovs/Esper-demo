@@ -44,7 +44,7 @@ public class AggregatorDistinctValue implements AggregationMethod {
 
     public void leave(Object value) {
         // if last reference to the value is removed, remove from aggregate
-        if(valueSet.getRefSet().get(value) != null){
+        if (valueSet.getRefSet().get(value) != null) {
             if (valueSet.remove(value)) {
                 inner.leave(value);
             }

@@ -16,9 +16,8 @@ package com.espertech.esper.epl.agg.aggregator;
 public class AggregatorSumNumInteger implements AggregationMethod {
     protected int sum;
     protected long numDataPoints;
-    protected long clearTag;
+
     public void clear() {
-        clearTag += numDataPoints;
         sum = 0;
         numDataPoints = 0;
     }
@@ -37,17 +36,12 @@ public class AggregatorSumNumInteger implements AggregationMethod {
             return;
         }
 
-        if(clearTag > 0){
-            clearTag--;
-        }
-        else {
-            if (numDataPoints <= 1) {
-                clear();
-            } else {
-                numDataPoints--;
-                Number number = (Number) object;
-                sum -= number.intValue();
-            }
+        if (numDataPoints <= 1) {
+            clear();
+        } else {
+            numDataPoints--;
+            Number number = (Number) object;
+            sum -= number.intValue();
         }
     }
 

@@ -27,9 +27,6 @@ public class TimeWindowView_Metric_1 {
         //configuration.getEngineDefaults().getThreading().setThreadPoolInboundCapacity(1000);
         //configuration.getEngineDefaults().getThreading().setThreadPoolInboundNumThreads(Runtime.getRuntime().availableProcessors());
 
-        // Define UDF
-        configuration.addPlugInSingleRowFunction("onCase", UserDefinedFunction.class.getName(), "onCase", ConfigurationPlugInSingleRowFunction.ValueCache.ENABLED);
-
         EPServiceProvider epService = EPServiceProviderManager.getProvider("esper", configuration);
         Map<String, Object> eventType = new HashMap<>();
         eventType.put("event_name", String.class);
@@ -37,11 +34,14 @@ public class TimeWindowView_Metric_1 {
         eventType.put("dst_address", String.class);
         eventType.put("event_id", Long.class);
         eventType.put("group", Long.class);
+        eventType.put("spin_tag", Long.class);
+        eventType.put("process_name", String.class);
+        eventType.put("client_host_sign", String.class);
         eventType.put("occur_time", Long.class);
-        epService.getEPAdministrator().getConfiguration().addEventType("TestEvent", eventType);
+        epService.getEPAdministrator().getConfiguration().addEventType("GlobalEvent", eventType);
 
         try {
-            String epl1 = FileUtil.readResourceAsString("epl_case10_ext_timed.sql");
+            String epl1 = FileUtil.readResourceAsString("epl_case19_any_order.sql");
             EPStatement epStatement = epService.getEPAdministrator().createEPL(epl1, "EPL#1", 1);
             epStatement.addListener((newData, oldData, statement, serviceProvider) -> {
                 int ruleId = (int) statement.getUserObject();
@@ -73,6 +73,7 @@ public class TimeWindowView_Metric_1 {
     private static void sendRandomEvents(EPRuntime runtime) {
         long remainingEvents = Long.MAX_VALUE;
         long cnt = 0;
+        long now = System.currentTimeMillis();
         String[] eventNames = new String[]{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"};
         while (--remainingEvents > 0) {
             int randomVal = new Random().nextInt(eventNames.length);
@@ -82,9 +83,9 @@ public class TimeWindowView_Metric_1 {
             element.put("event_name", eventNames[randomVal % eventNames.length]);
             element.put("src_address", "172.16.100." + cnt % 0xFF);
             element.put("dst_address", "172.16.100." + cnt % 0xFF);
-            element.put("occur_time", System.currentTimeMillis());
+            element.put("occur_time", now -= 3000);
             MetricUtil.getConsumeRateMetric().mark();
-            runtime.sendEvent(element, "TestEvent");
+            runtime.sendEvent(element, "GlobalEvent");
         }
     }
 }

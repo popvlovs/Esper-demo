@@ -25,7 +25,7 @@ public class AggregatorAvgBigDecimal implements AggregationMethod {
     protected BigDecimal sum;
     protected long numDataPoints;
     protected MathContext optionalMathContext;
-    protected long clearTag;
+
     /**
      * Ctor.
      *
@@ -37,7 +37,6 @@ public class AggregatorAvgBigDecimal implements AggregationMethod {
     }
 
     public void clear() {
-        clearTag += numDataPoints;
         sum = new BigDecimal(0.0);
         numDataPoints = 0;
     }
@@ -58,19 +57,14 @@ public class AggregatorAvgBigDecimal implements AggregationMethod {
         if (object == null) {
             return;
         }
-        if(clearTag >0){
-            clearTag--;
-        }
-        else {
-            if (numDataPoints <= 1) {
-                clear();
+        if (numDataPoints <= 1) {
+            clear();
+        } else {
+            numDataPoints--;
+            if (object instanceof BigInteger) {
+                sum = sum.subtract(new BigDecimal((BigInteger) object));
             } else {
-                numDataPoints--;
-                if (object instanceof BigInteger) {
-                    sum = sum.subtract(new BigDecimal((BigInteger) object));
-                } else {
-                    sum = sum.subtract((BigDecimal) object);
-                }
+                sum = sum.subtract((BigDecimal) object);
             }
         }
     }

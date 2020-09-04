@@ -98,11 +98,12 @@ public class UserDefinedFunction {
     }
 
     public static long lastOccurTime(Map[] maps) {
-        return (long) maps[maps.length- 1 ].get("occur_time");
+        return (long) maps[maps.length - 1].get("occur_time");
     }
 
     private final static AtomicLong lastOutputTsA = new AtomicLong(0L);
     private final static AtomicLong lastOutputTsB = new AtomicLong(0L);
+
     public static boolean timerTerminate(Map data, EPLMethodInvocationContext context) {
         long now = System.currentTimeMillis();
         if (Objects.equals(data.get("event_name"), "A")) {

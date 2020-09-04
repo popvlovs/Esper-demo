@@ -19,4 +19,4 @@ FROM TestEvent(
   ((event_name = 'I' AND src_address = '172.16.100.9') AND oncase(1, 8, 10, *, `group`))
   or
   ((event_name = 'J' AND src_address = '172.16.100.10') AND oncase(1, 9, 10, *, `group`))
-).win:ext_timed(occur_time, 2 sec)
+).win:ext_timed(occur_time, 2 sec) having(1 != 1)

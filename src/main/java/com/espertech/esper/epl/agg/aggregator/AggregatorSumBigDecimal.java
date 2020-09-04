@@ -18,7 +18,7 @@ import java.math.BigDecimal;
 public class AggregatorSumBigDecimal implements AggregationMethod {
     protected BigDecimal sum;
     protected long numDataPoints;
-    protected long clearTag;
+
     /**
      * Ctor.
      */
@@ -27,7 +27,6 @@ public class AggregatorSumBigDecimal implements AggregationMethod {
     }
 
     public void clear() {
-        clearTag += numDataPoints;
         sum = new BigDecimal(0.0);
         numDataPoints = 0;
     }
@@ -45,16 +44,11 @@ public class AggregatorSumBigDecimal implements AggregationMethod {
             return;
         }
 
-        if(clearTag > 0){
-            clearTag--;
-        }
-        else {
-            if (numDataPoints <= 1) {
-                clear();
-            } else {
-                numDataPoints--;
-                sum = sum.subtract((BigDecimal) object);
-            }
+        if (numDataPoints <= 1) {
+            clear();
+        } else {
+            numDataPoints--;
+            sum = sum.subtract((BigDecimal) object);
         }
     }
 

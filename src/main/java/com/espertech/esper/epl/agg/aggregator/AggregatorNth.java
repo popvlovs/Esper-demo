@@ -23,7 +23,7 @@ public class AggregatorNth implements AggregationMethod {
     protected Object[] circularBuffer;
     protected int currentBufferElementPointer;
     protected long numDataPoints;
-    protected long clearTag;
+
     /**
      * Ctor.
      *
@@ -44,16 +44,11 @@ public class AggregatorNth implements AggregationMethod {
     }
 
     public void leave(Object value) {
-        if(clearTag >0){
-            clearTag--;
+        if (sizeBuf > numDataPoints) {
+            final int diff = sizeBuf - (int) numDataPoints;
+            circularBuffer[(currentBufferElementPointer + diff - 1) % sizeBuf] = null;
         }
-        else {
-            if (sizeBuf > numDataPoints) {
-                final int diff = sizeBuf - (int) numDataPoints;
-                circularBuffer[(currentBufferElementPointer + diff - 1) % sizeBuf] = null;
-            }
-            numDataPoints--;
-        }
+        numDataPoints--;
     }
 
     public Object getValue() {
@@ -64,7 +59,6 @@ public class AggregatorNth implements AggregationMethod {
     }
 
     public void clear() {
-        clearTag += numDataPoints;
         circularBuffer = new Object[sizeBuf];
         numDataPoints = 0;
         currentBufferElementPointer = 0;

@@ -17,9 +17,8 @@ public class AggregatorStddev implements AggregationMethod {
     protected double mean;
     protected double qn;
     protected long numDataPoints;
-    protected long clearTag;
+
     public void clear() {
-        clearTag += numDataPoints;
         mean = 0;
         numDataPoints = 0;
         qn = 0;
@@ -53,18 +52,13 @@ public class AggregatorStddev implements AggregationMethod {
         double p = ((Number) object).doubleValue();
 
         // compute running variance per Knuth's method
-        if(clearTag > 0){
-            clearTag--;
-        }
-        else {
-            if (numDataPoints <= 1) {
-                clear();
-            } else {
-                numDataPoints--;
-                double oldmean = mean;
-                mean -= (p - mean) / numDataPoints;
-                qn -= (p - oldmean) * (p - mean);
-            }
+        if (numDataPoints <= 1) {
+            clear();
+        } else {
+            numDataPoints--;
+            double oldmean = mean;
+            mean -= (p - mean) / numDataPoints;
+            qn -= (p - oldmean) * (p - mean);
         }
     }
 

@@ -54,7 +54,7 @@ public class WindowCountMetric_1 {
             JSONObject element = new JSONObject();
             element.put("event_id", cnt++);
             element.put("event_name", eventNames[randomVal % eventNames.length]);
-            element.put("src_address", "172.16.100." + cnt % 0xFF);
+            element.put("src_address", "172.16.100.1");
             element.put("dst_address", "172.16.100." + cnt % 0xFF);
             element.put("occur_time", System.currentTimeMillis());
             MetricUtil.getConsumeRateMetric().mark();

@@ -18,7 +18,7 @@ import java.math.BigInteger;
 public class AggregatorSumBigInteger implements AggregationMethod {
     protected BigInteger sum;
     protected long numDataPoints;
-    protected long clearTag;
+
     /**
      * Ctor.
      */
@@ -27,7 +27,6 @@ public class AggregatorSumBigInteger implements AggregationMethod {
     }
 
     public void clear() {
-        clearTag += numDataPoints;
         sum = BigInteger.valueOf(0);
         numDataPoints = 0;
     }
@@ -44,16 +43,11 @@ public class AggregatorSumBigInteger implements AggregationMethod {
         if (object == null) {
             return;
         }
-        if(clearTag > 0){
-            clearTag--;
-        }
-        else {
-            if (numDataPoints <= 1) {
-                clear();
-            } else {
-                numDataPoints--;
-                sum = sum.subtract((BigInteger) object);
-            }
+        if (numDataPoints <= 1) {
+            clear();
+        } else {
+            numDataPoints--;
+            sum = sum.subtract((BigInteger) object);
         }
     }
 

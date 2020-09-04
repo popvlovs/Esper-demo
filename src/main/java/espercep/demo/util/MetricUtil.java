@@ -89,6 +89,17 @@ public class MetricUtil {
         return (Counter) metricContainer.get(name);
     }
 
+    public static Gauge getGauge(String name, MetricRegistry.MetricSupplier<Gauge> supplier) {
+        if (!metricContainer.containsKey(name)) {
+            synchronized (metricContainer) {
+                if (!metricContainer.containsKey(name)) {
+                    metricContainer.put(name, metrics.gauge(name, supplier));
+                }
+            }
+        }
+        return (Gauge) metricContainer.get(name);
+    }
+
     public static Meter getMeter(String name) {
         if (!enabled.get()) {
             return NoMeter.getInstance();

@@ -23,6 +23,14 @@ public class WindowCountMetric_2 {
         FeatureToggle.setNumDistinctEventRetained(10);
         EPServiceProvider epService = EPServiceProviderManager.getProvider("esper-engine", configuration);
 
+        configuration.getEngineDefaults().getMetricsReporting().setEnableMetricsReporting(true);
+        configuration.getEngineDefaults().getMetricsReporting().setEngineInterval(1000);
+        configuration.getEngineDefaults().getMetricsReporting().setStatementInterval(1000);
+
+        configuration.getEngineDefaults().getThreading().setThreadPoolInbound(true);
+        configuration.getEngineDefaults().getThreading().setThreadPoolInboundCapacity(1000);
+        configuration.getEngineDefaults().getThreading().setThreadPoolInboundNumThreads(Runtime.getRuntime().availableProcessors());
+
         // Schema
         Map<String, Object> eventType = new HashMap<>();
         eventType.put("nta", String.class);
@@ -70,7 +78,7 @@ public class WindowCountMetric_2 {
         try {
             String epl = FileUtil.readResourceAsString("epl_case17_172.16.100.216.sql");
             System.out.println(epl);
-            for (int i = 0; i < 4; ++i) {
+            for (int i = 0; i < 1; ++i) {
                 String regularEpl = epl;
                 final String eplName = "EPL#" + i;
                 EPStatement epStatement = epService.getEPAdministrator().createEPL(regularEpl, eplName);
@@ -80,8 +88,7 @@ public class WindowCountMetric_2 {
                 });
             }
             sendRandomEvents(epService.getEPRuntime());
-        } catch (
-                Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException("Error on execute eql", e);
         }
     }
@@ -128,7 +135,7 @@ public class WindowCountMetric_2 {
             element.put("src_port", new Random().nextInt(255) + 30000);
             element.put("end_time", now + 1000L);
             element.put("first_time", now);
-            element.put("spin_tag", 0L);
+            element.put("spin_tag", "0L");
             element.put("alarm_level", 1);
             element.put("src_address", "172.16.0." + new Random().nextInt(255));
 

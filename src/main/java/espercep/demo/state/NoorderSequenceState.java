@@ -61,6 +61,9 @@ public class NoorderSequenceState<E extends Map> {
         lock.lock();
         try {
             Queue<E> queue = states.get(slot);
+            if (queue.size() == 1024) {
+                E removal = poll(slot);
+            }
             if (queue.offer(element)) {
                 EventBeanQueueStateFacade.addQueueState(ruleId, element, queue);
                 if (queue.isEmpty()) {
@@ -68,6 +71,8 @@ public class NoorderSequenceState<E extends Map> {
                 } else {
                     setBitState(slot, true);
                 }
+            } else {
+                throw new RuntimeException("Unexpected queue state");
             }
         } finally {
             lock.unlock();

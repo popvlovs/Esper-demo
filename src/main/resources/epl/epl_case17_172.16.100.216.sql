@@ -13,6 +13,6 @@ SELECT
        WINDOW(dst_address_array) AS _WINDOW_ENRICH_DIPS,
        WINDOW(data_source) AS _WINDOW_ENRICH_DATASOURCE,
        WINDOW(data_source_array) AS _WINDOW_ENRICH_DATASOURCES
-FROM GlobalEvent(event_name='DNS查询').win:ext_timed(occur_time,1 min) AS A
-GROUP BY A.`src_port`, A.dst_address
-HAVING count(distinct(`src_address`)) >= 100
+FROM GlobalEvent(event_name='DNS查询' and spin_tag < 1).win:ext_timed(occur_time,1 min) AS A
+GROUP BY A.`src_port`
+HAVING count(`alarm_level`) >= 100

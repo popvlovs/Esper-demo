@@ -58,6 +58,9 @@ public class ResultSetProcessorRowPerGroup implements ResultSetProcessor, Aggreg
         this.aggregationService = aggregationService;
         this.agentInstanceContext = agentInstanceContext;
 
+        // 在context中加入aggregationService引用，用于快速清理aggregator队列
+        agentInstanceContext.addAggregationService(aggregationService);
+
         aggregationService.setRemovedCallback(this);
 
         if (prototype.isOutputLast()) {
@@ -257,7 +260,8 @@ public class ResultSetProcessorRowPerGroup implements ResultSetProcessor, Aggreg
             count++;
 
             //一旦规则条件满足，则清零聚合状态
-            aggregationService.applyClear();
+            ResultSetProcessorUtil.applyAggClearResult(aggregationService, agentInstanceContext, null, entry.getKey());
+            // aggregationService.applyClear();
         }
 
         // Resize if some rows were filtered out

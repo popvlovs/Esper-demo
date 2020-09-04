@@ -31,15 +31,6 @@ public class EsperTest {
 
         configuration.addPlugInSingleRowFunction("GET_BASELINE", UserDefinedFunction.class.getName(), "getBaseline", ConfigurationPlugInSingleRowFunction.ValueCache.ENABLED);
 
-        // Multiple threading
-        boolean isThreading = Arrays.stream(args).anyMatch(arg -> arg.equals("multipleThread"));
-        if (isThreading) {
-            System.out.println("Enable multiple thread:");
-            configuration.getEngineDefaults().getThreading().setThreadPoolInbound(true);
-            configuration.getEngineDefaults().getThreading().setThreadPoolInboundCapacity(1000);
-            configuration.getEngineDefaults().getThreading().setThreadPoolInboundNumThreads(Runtime.getRuntime().availableProcessors());
-        }
-
         String recordNums = Arrays.stream(args).filter(arg -> arg.startsWith("recordNums=")).findFirst().orElse("recordNums=15000000");
         int num = Integer.parseInt(recordNums.replaceAll("recordNums=", ""));
 

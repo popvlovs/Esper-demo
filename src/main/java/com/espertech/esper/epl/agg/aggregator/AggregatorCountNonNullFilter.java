@@ -17,9 +17,8 @@ import java.lang.reflect.Array;
  */
 public class AggregatorCountNonNullFilter implements AggregationMethod {
     protected long numDataPoints;
-    protected long clearTag;
+
     public void clear() {
-        clearTag += numDataPoints;
         numDataPoints = 0;
     }
 
@@ -31,13 +30,8 @@ public class AggregatorCountNonNullFilter implements AggregationMethod {
 
     public void leave(Object object) {
         if (checkPass(object)) {
-            if(clearTag > 0){
-                clearTag--;
-            }
-            else {
-                if (numDataPoints > 0) {
-                    numDataPoints--;
-                }
+            if (numDataPoints > 0) {
+                numDataPoints--;
             }
         }
     }

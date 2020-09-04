@@ -15,12 +15,11 @@ package com.espertech.esper.epl.agg.aggregator;
  */
 public class AggregatorCountNonNull implements AggregationMethod {
     protected long numDataPoints;
-    protected long clearTag;
+
     public AggregatorCountNonNull() {
     }
 
     public void clear() {
-        clearTag += numDataPoints;
         numDataPoints = 0;
     }
 
@@ -35,13 +34,8 @@ public class AggregatorCountNonNull implements AggregationMethod {
         if (object == null) {
             return;
         }
-        if(clearTag > 0){
-            clearTag--;
-        }
-        else {
-            if (numDataPoints > 0) {
-                numDataPoints--;
-            }
+        if (numDataPoints > 0) {
+            numDataPoints--;
         }
     }
 
