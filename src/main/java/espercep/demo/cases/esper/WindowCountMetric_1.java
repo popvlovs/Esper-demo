@@ -2,6 +2,8 @@ package espercep.demo.cases.esper;
 
 import com.alibaba.fastjson.JSONObject;
 import com.espertech.esper.client.*;
+import com.espertech.esper.client.metric.StatementMetric;
+import com.espertech.esper.metrics.statement.StatementStateMetric;
 import com.espertech.esper.util.FeatureToggle;
 import espercep.demo.util.FileUtil;
 import espercep.demo.util.MetricUtil;
@@ -11,6 +13,7 @@ import org.slf4j.LoggerFactory;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -48,6 +51,10 @@ public class WindowCountMetric_1 {
             //System.out.println("selected row: " + JSONObject.toJSONString(newData[0].getUnderlying()));
         });
 
+        Executors.newScheduledThreadPool(1).scheduleWithFixedDelay(() -> {
+            System.out.println(JSONObject.toJSONString(StatementStateMetric.getAllMetrics(), true));
+        }, 5, 5, TimeUnit.SECONDS);
+
         sendRandomEvents(epService.getEPRuntime());
     }
 
@@ -65,7 +72,8 @@ public class WindowCountMetric_1 {
             element.put("src_address", "172.16.100." + cnt % 0xFF);
             element.put("src_address", null);
             element.put("dst_address", "172.16.100." + cnt % 0xFF);
-            element.put("occur_time", System.currentTimeMillis() + rand.nextInt(60000) - TimeUnit.SECONDS.toMillis(1));// + randomVal);
+            //element.put("occur_time", System.currentTimeMillis() + rand.nextInt(60000) - TimeUnit.SECONDS.toMillis(1));// + randomVal);
+            element.put("occur_time", System.currentTimeMillis());
             MetricUtil.getConsumeRateMetric().mark();
             epRuntime.sendEvent(element, "TestEvent");
         }

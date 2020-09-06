@@ -5,6 +5,7 @@ import com.espertech.esper.core.context.util.AgentInstanceContext;
 import com.espertech.esper.epl.agg.service.AggregationService;
 import com.espertech.esper.epl.expression.core.ExprEvaluator;
 import com.espertech.esper.epl.expression.core.ExprNode;
+import com.espertech.esper.metrics.statement.DistinctWinStateMetric;
 
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -25,34 +26,34 @@ public class DistinctTimeWindow extends TimeWindow {
     private AgentInstanceContext agentInstanceContext;
     private Map<Object, ArrayDeque<EventBean>> distinctByStack;
     private int stackSize;
+    private DistinctWinStateMetric metric;
 
-    public DistinctTimeWindow(AgentInstanceContext agentInstanceContext, ExprNode distinctByNode, int stackSize) {
+    public DistinctTimeWindow(AgentInstanceContext agentInstanceContext, ExprNode distinctByNode, int stackSize,
+                              DistinctWinStateMetric metric) {
         super(true);
         this.distinctByNode = distinctByNode;
         this.distinctByEvaluator = this.distinctByNode.getExprEvaluator();
         this.agentInstanceContext = agentInstanceContext;
         this.distinctByStack = new HashMap<>();
         this.stackSize = stackSize;
+        this.metric = metric;
     }
 
     @Override
     public boolean add(long timestamp, EventBean bean) {
         boolean succeed = super.add(timestamp, bean);
-        Object distinctValue = getDistinctValue(true, bean);
-        ArrayDeque<EventBean> stack;
-        if (distinctByStack.containsKey(distinctValue)) {
-            stack = distinctByStack.get(distinctValue);
-        } else {
-            stack = new ArrayDeque<>(stackSize);
-            distinctByStack.put(distinctValue, stack);
-        }
-        if (stack.size() < stackSize) {
-            stack.push(bean);
-        } else {
-            EventBean eventToExpire = stack.pop();
-            this.removeFromAggregator(eventToExpire);
-            super.remove(eventToExpire);
-            stack.push(bean);
+        if (succeed) {
+            Object distinctValue = getDistinctValue(true, bean);
+            ArrayDeque<EventBean> stack = distinctByStack.computeIfAbsent(distinctValue, key -> new ArrayDeque<>(stackSize));
+            if (stack.size() < stackSize) {
+                stack.offer(bean);
+                metric.incDistinctWinSize();
+            } else {
+                EventBean eventToExpire = stack.poll();
+                this.removeFromAggregator(eventToExpire);
+                super.remove(eventToExpire);
+                stack.offer(bean);
+            }
         }
         return succeed;
     }
@@ -69,15 +70,15 @@ public class DistinctTimeWindow extends TimeWindow {
         if (expireEvents != null) {
             expireEvents.forEach(this::removeFromDistinctStack);
         }
+        metric.setInnerWinSize(super.getWindowSize());
         return expireEvents;
     }
 
     private void removeFromDistinctStack(EventBean theEvent) {
         Object distinctValue = getDistinctValue(false, theEvent);
-        ArrayDeque<EventBean> stack;
-        if (distinctByStack.containsKey(distinctValue)) {
-            stack = distinctByStack.get(distinctValue);
-            stack.remove(theEvent);
+        ArrayDeque<EventBean> stack = distinctByStack.get(distinctValue);
+        if (stack != null && stack.remove(theEvent)) {
+            metric.decDistinctWinSize();
         }
     }
 

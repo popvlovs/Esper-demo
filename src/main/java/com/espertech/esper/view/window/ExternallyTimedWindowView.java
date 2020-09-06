@@ -23,6 +23,7 @@ import com.espertech.esper.epl.expression.methodagg.ExprCountNode;
 import com.espertech.esper.epl.expression.time.ExprTimePeriodEvalDeltaConst;
 import com.espertech.esper.epl.spec.GroupByClauseExpressions;
 import com.espertech.esper.metrics.instrumentation.InstrumentationHelper;
+import com.espertech.esper.metrics.statement.*;
 import com.espertech.esper.util.CollectionUtil;
 import com.espertech.esper.util.FeatureToggle;
 import com.espertech.esper.view.*;
@@ -94,6 +95,8 @@ public class ExternallyTimedWindowView extends ViewSupport implements DataWindow
 
         AgentInstanceContext agentInstanceContext = this.agentInstanceViewFactoryContext.getAgentInstanceContext();
 
+        String statementName = agentInstanceContext.getStatementName();
+
         if (agentInstanceContext != null) {
             agentInstanceContext.addExtTimedWindowView(this);
             ExprNode distinctByNode = getHavingDistinctNodes(agentInstanceContext);
@@ -105,17 +108,21 @@ public class ExternallyTimedWindowView extends ViewSupport implements DataWindow
                     // Use grouped time-window
                     if (distinctByNode != null && FeatureToggle.isReduceDistinctEventNum()) {
                         // Reduce distinct events of window (retain top-k + last)
-                        this.timeWindow = new DistinctGroupByTimeWindow(groupByEvaluators, groupByNodes, agentInstanceContext, distinctByNode, FeatureToggle.getNumDistinctEventRetained());
+                        DistinctGroupWinStateMetric metric = StatementStateMetric.createDistinctGroupStateMetric(statementName);
+                        this.timeWindow = new DistinctGroupByTimeWindow(groupByEvaluators, groupByNodes, agentInstanceContext, distinctByNode, FeatureToggle.getNumDistinctEventRetained(), metric);
                     } else {
-                        this.timeWindow = new GroupByTimeWindow(groupByEvaluators, groupByNodes, agentInstanceContext);
+                        GroupWinStateMetric metric = StatementStateMetric.createGroupStateMetric(statementName);
+                        this.timeWindow = new GroupByTimeWindow(groupByEvaluators, groupByNodes, agentInstanceContext, metric);
                     }
                 }
             }
             if (this.timeWindow == null) {
                 if (distinctByNode != null && FeatureToggle.isReduceDistinctEventNum()) {
-                    this.timeWindow = new DistinctTimeWindow(agentInstanceContext, distinctByNode, FeatureToggle.getNumDistinctEventRetained());
+                    DistinctWinStateMetric metric = StatementStateMetric.createDistinctStateMetric(statementName);
+                    this.timeWindow = new DistinctTimeWindow(agentInstanceContext, distinctByNode, FeatureToggle.getNumDistinctEventRetained(), metric);
                 } else {
-                    this.timeWindow = new TimeWindow(agentInstanceViewFactoryContext.isRemoveStream());
+                    WinStateMetric metric = StatementStateMetric.createWinStateMetric(statementName);
+                    this.timeWindow = new TimeWindow(agentInstanceViewFactoryContext.isRemoveStream(), metric);
                 }
             }
         } else {

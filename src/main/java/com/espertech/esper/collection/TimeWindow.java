@@ -12,6 +12,7 @@ package com.espertech.esper.collection;
 
 import com.espertech.esper.client.EventBean;
 import com.espertech.esper.epl.expression.time.ExprTimePeriodEvalDeltaConst;
+import com.espertech.esper.metrics.statement.WinStateMetric;
 import com.espertech.esper.view.DataWindowViewFactory;
 import com.espertech.esper.view.ViewDataVisitor;
 import espercep.demo.util.MetricUtil;
@@ -38,6 +39,7 @@ public class TimeWindow implements Iterable {
     private int size;
 
     private ExprTimePeriodEvalDeltaConst timeDelta;
+    private WinStateMetric metric;
     /**
      * Ctor.
      *
@@ -50,6 +52,11 @@ public class TimeWindow implements Iterable {
         if (isSupportRemoveStream) {
             reverseIndex = new HashMap<EventBean, TimeWindowPair>();
         }
+    }
+
+    public TimeWindow(boolean isSupportRemoveStream, WinStateMetric metric) {
+        this(isSupportRemoveStream);
+        this.metric = metric;
     }
 
     /**
@@ -181,6 +188,14 @@ public class TimeWindow implements Iterable {
      * @return a list of events expired and removed from the window, or null if none expired
      */
     public ArrayDeque<EventBean> expireEvents(long expireBefore) {
+        ArrayDeque<EventBean> expiredEvents = removeOnExpire(expireBefore);
+        if (metric != null) {
+            metric.setInnerWinSize(this.getWindowSize());
+        }
+        return expiredEvents;
+    }
+
+    private ArrayDeque<EventBean> removeOnExpire(long expireBefore) {
         if (window==null || window.isEmpty()) {
             return null;
         }
@@ -305,5 +320,9 @@ public class TimeWindow implements Iterable {
 
     public void visitView(ViewDataVisitor viewDataVisitor, DataWindowViewFactory viewFactory) {
         viewDataVisitor.visitPrimary(window, false, viewFactory.getViewName(), size);
+    }
+
+    protected int getWindowSize() {
+        return reverseIndex == null ? 0 : reverseIndex.size();
     }
 }

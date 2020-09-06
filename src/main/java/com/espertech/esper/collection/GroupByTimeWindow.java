@@ -4,6 +4,7 @@ import com.espertech.esper.client.EventBean;
 import com.espertech.esper.core.context.util.AgentInstanceContext;
 import com.espertech.esper.epl.expression.core.ExprEvaluator;
 import com.espertech.esper.epl.expression.core.ExprNode;
+import com.espertech.esper.metrics.statement.GroupWinStateMetric;
 
 import java.util.ArrayDeque;
 import java.util.HashMap;
@@ -18,13 +19,16 @@ public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
     private ExprNode[] groupByNodes;
     private AgentInstanceContext agentInstanceContext;
     private Map<Object, ArrayDeque<EventBean>> groupedWindow;
+    private GroupWinStateMetric metric;
 
-    public GroupByTimeWindow(ExprEvaluator[] groupByEvaluators, ExprNode[] groupByNodes, AgentInstanceContext agentInstanceContext) {
+    public GroupByTimeWindow(ExprEvaluator[] groupByEvaluators, ExprNode[] groupByNodes, AgentInstanceContext agentInstanceContext,
+                             GroupWinStateMetric metric) {
         super(true);
         this.groupByEvaluators = groupByEvaluators;
         this.groupByNodes = groupByNodes;
         this.agentInstanceContext = agentInstanceContext;
         this.groupedWindow = new HashMap<>();
+        this.metric = metric;
     }
 
     /**
@@ -39,7 +43,7 @@ public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
             Object groupByKey = getGroupByKey(true, bean);
             ArrayDeque<EventBean> window = groupedWindow.computeIfAbsent(groupByKey, key -> new ArrayDeque<>());
             window.add(bean);
-            return true;
+            metric.incGroupWinSize();
         }
         return succeed;
     }
@@ -47,8 +51,8 @@ public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
     private void removeFromGroup(EventBean event) {
         Object groupByKey = getGroupByKey(false, event);
         ArrayDeque<EventBean> groupWindow = groupedWindow.get(groupByKey);
-        if (groupWindow != null) {
-            groupWindow.remove(event);
+        if (groupWindow != null && groupWindow.remove(event)) {
+            metric.decGroupWinSize();
         }
     }
 
@@ -64,6 +68,7 @@ public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
         if (expiredEvents != null) {
             expiredEvents.forEach(this::removeFromGroup);
         }
+        metric.setInnerWinSize(super.getWindowSize());
         return expiredEvents;
     }
 
@@ -77,7 +82,10 @@ public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
         for (Object groupByKey : groupByKeys) {
             ArrayDeque<EventBean> eventBeans = this.groupedWindow.remove(groupByKey);
             if (eventBeans != null) {
-                eventBeans.forEach(super::remove);
+                eventBeans.forEach(theEvent -> {
+                    super.remove(theEvent);
+                    metric.decGroupWinSize();
+                });
             }
         }
     }

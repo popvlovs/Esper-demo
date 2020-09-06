@@ -5,11 +5,9 @@ import com.espertech.esper.core.context.util.AgentInstanceContext;
 import com.espertech.esper.epl.agg.service.AggregationService;
 import com.espertech.esper.epl.expression.core.ExprEvaluator;
 import com.espertech.esper.epl.expression.core.ExprNode;
+import com.espertech.esper.metrics.statement.DistinctGroupWinStateMetric;
 
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Copyright: 瀚思安信（北京）软件技术有限公司，保留所有权利。
@@ -28,9 +26,18 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
     private AgentInstanceContext agentInstanceContext;
     private Map<Object, DistinctWindowPair> groupedWindow;
     private int stackSize;
+    private DistinctGroupWinStateMetric metric;
+
+    /**
+     * 当distinct stack已满，是否直接拒绝最新的event
+     * 或者从状态中移除一个旧的event (aggregator & window)，以装入新的event
+     * 直接拒绝的话吞吐量会比较高，但是可能导致
+     */
+    private boolean isDiscardNewEvent;
 
     public DistinctGroupByTimeWindow(ExprEvaluator[] groupByEvaluators, ExprNode[] groupByNodes,
-                                     AgentInstanceContext agentInstanceContext, ExprNode distinctByNode, int stackSize) {
+                                     AgentInstanceContext agentInstanceContext, ExprNode distinctByNode, int stackSize,
+                                     DistinctGroupWinStateMetric metric) {
         super(true);
         this.groupByEvaluators = groupByEvaluators;
         this.groupByNodes = groupByNodes;
@@ -39,6 +46,7 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
         this.agentInstanceContext = agentInstanceContext;
         this.stackSize = stackSize;
         this.groupedWindow = new HashMap<>();
+        this.metric = metric;
     }
 
     @Override
@@ -47,7 +55,10 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
         if (succeed) {
             Object groupByKey = getGroupByKey(true, bean);
             DistinctWindowPair pairPerGroup = groupedWindow.computeIfAbsent(groupByKey, key -> new DistinctWindowPair(this));
-            pairPerGroup.add(bean);
+            if (!pairPerGroup.add(bean)) {
+                succeed = false;
+                super.remove(bean);
+            }
         }
         return succeed;
     }
@@ -64,6 +75,7 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
         if (expireEvents != null) {
             expireEvents.forEach(this::removeFromGroup);
         }
+        metric.setInnerWinSize(super.getWindowSize());
         return expireEvents;
     }
 
@@ -93,7 +105,10 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
         for (Object groupByKey : groupByKeys) {
             DistinctWindowPair distinctWindowPair = this.groupedWindow.remove(groupByKey);
             if (distinctWindowPair != null) {
-                distinctWindowPair.getWindow().forEach(super::remove);
+                distinctWindowPair.getWindow().forEach(theEvent -> {
+                    super.remove(theEvent);
+                    metric.decGroupWinSize();
+                });
             }
         }
     }
@@ -108,38 +123,47 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
     }
 
     private class DistinctWindowPair {
-        private ArrayDeque<EventBean> window;
+        private Set<EventBean> window;
         private Map<Object, ArrayDeque<EventBean>> distinctByStack;
         private DistinctGroupByTimeWindow parent;
 
         public DistinctWindowPair(DistinctGroupByTimeWindow parent) {
-            this.window = new ArrayDeque<>();
+            this.window = new HashSet<>();
             this.distinctByStack = new HashMap<>();
             this.parent = parent;
         }
 
-        public ArrayDeque<EventBean> getWindow() {
+        public Collection<EventBean> getWindow() {
             return window;
         }
 
-        public void add(EventBean bean) {
+        public boolean add(EventBean bean) {
             Object distinctValue = getDistinctValue(true, bean);
-            this.window.add(bean);
+
             ArrayDeque<EventBean> stack = distinctByStack.computeIfAbsent(distinctValue, key -> new ArrayDeque<>(stackSize));
             if (stack.size() < stackSize) {
-                stack.push(bean);
+                stack.offer(bean);
+                this.window.add(bean);
+                metric.incGroupWinSize();
             } else {
-                EventBean eventToExpire = stack.pop();
-                this.window.remove(bean);
-                this.removeFromAggregator(eventToExpire);
-                this.parent.removeWindow(eventToExpire);
-                stack.push(bean);
+                if (isDiscardNewEvent) {
+                    return false;
+                } else {
+                    EventBean eventToExpire = stack.poll();
+                    this.window.remove(eventToExpire);
+                    this.removeFromAggregator(eventToExpire);
+                    this.parent.removeWindow(eventToExpire);
+                    stack.offer(bean);
+                }
             }
+            return true;
         }
 
         public void remove(EventBean bean) {
             Object distinctValue = getDistinctValue(false, bean);
-            this.window.remove(bean);
+            if (this.window.remove(bean)) {
+                metric.decGroupWinSize();
+            }
             ArrayDeque<EventBean> stack = distinctByStack.get(distinctValue);
             if (stack != null) {
                 stack.remove(bean);
