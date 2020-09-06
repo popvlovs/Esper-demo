@@ -44,13 +44,10 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
     @Override
     public boolean add(long timestamp, EventBean bean) {
         boolean succeed = super.add(timestamp, bean);
-        Object groupByKey = getGroupByKey(true, bean);
-        if (groupedWindow.containsKey(groupByKey)) {
-            groupedWindow.get(groupByKey).add(bean);
-        } else {
-            DistinctWindowPair pairPerGroup = new DistinctWindowPair(this);
+        if (succeed) {
+            Object groupByKey = getGroupByKey(true, bean);
+            DistinctWindowPair pairPerGroup = groupedWindow.computeIfAbsent(groupByKey, key -> new DistinctWindowPair(this));
             pairPerGroup.add(bean);
-            groupedWindow.put(groupByKey, pairPerGroup);
         }
         return succeed;
     }
@@ -72,8 +69,9 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
 
     private void removeFromGroup(EventBean theEvent) {
         Object groupByKey = getGroupByKey(false, theEvent);
-        if (groupedWindow.containsKey(groupByKey)) {
-            groupedWindow.get(groupByKey).remove(theEvent);
+        DistinctWindowPair groupWindow = groupedWindow.get(groupByKey);
+        if (groupWindow != null) {
+            groupWindow.remove(theEvent);
         }
     }
 
@@ -93,8 +91,8 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
     @Override
     public void clearAll(Object... groupByKeys) {
         for (Object groupByKey : groupByKeys) {
-            if (groupedWindow.containsKey(groupByKey)) {
-                DistinctWindowPair distinctWindowPair = this.groupedWindow.remove(groupByKey);
+            DistinctWindowPair distinctWindowPair = this.groupedWindow.remove(groupByKey);
+            if (distinctWindowPair != null) {
                 distinctWindowPair.getWindow().forEach(super::remove);
             }
         }
@@ -126,14 +124,8 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
 
         public void add(EventBean bean) {
             Object distinctValue = getDistinctValue(true, bean);
-            ArrayDeque<EventBean> stack;
             this.window.add(bean);
-            if (distinctByStack.containsKey(distinctValue)) {
-                stack = distinctByStack.get(distinctValue);
-            } else {
-                stack = new ArrayDeque<>(stackSize);
-                distinctByStack.put(distinctValue, stack);
-            }
+            ArrayDeque<EventBean> stack = distinctByStack.computeIfAbsent(distinctValue, key -> new ArrayDeque<>(stackSize));
             if (stack.size() < stackSize) {
                 stack.push(bean);
             } else {
@@ -148,8 +140,8 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
         public void remove(EventBean bean) {
             Object distinctValue = getDistinctValue(false, bean);
             this.window.remove(bean);
-            if (distinctByStack.containsKey(distinctValue)) {
-                ArrayDeque<EventBean> stack = distinctByStack.get(distinctValue);
+            ArrayDeque<EventBean> stack = distinctByStack.get(distinctValue);
+            if (stack != null) {
                 stack.remove(bean);
             }
         }

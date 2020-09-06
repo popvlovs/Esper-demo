@@ -22,7 +22,6 @@ import com.espertech.esper.epl.expression.core.ExprNodeUtility;
 import com.espertech.esper.epl.expression.methodagg.ExprCountNode;
 import com.espertech.esper.epl.expression.time.ExprTimePeriodEvalDeltaConst;
 import com.espertech.esper.epl.spec.GroupByClauseExpressions;
-import com.espertech.esper.metrics.MemoryUsageMetric;
 import com.espertech.esper.metrics.instrumentation.InstrumentationHelper;
 import com.espertech.esper.util.CollectionUtil;
 import com.espertech.esper.util.FeatureToggle;

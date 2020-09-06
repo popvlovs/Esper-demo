@@ -35,21 +35,20 @@ public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
      */
     public boolean add(long timestamp, EventBean bean) {
         boolean succeed = super.add(timestamp, bean);
-        Object groupByKey = getGroupByKey(true, bean);
-        if (groupedWindow.containsKey(groupByKey)) {
-            groupedWindow.get(groupByKey).add(bean);
-        } else {
-            ArrayDeque<EventBean> window = new ArrayDeque<>();
+        if (succeed) {
+            Object groupByKey = getGroupByKey(true, bean);
+            ArrayDeque<EventBean> window = groupedWindow.computeIfAbsent(groupByKey, key -> new ArrayDeque<>());
             window.add(bean);
-            groupedWindow.put(groupByKey, window);
+            return true;
         }
         return succeed;
     }
 
     private void removeFromGroup(EventBean event) {
         Object groupByKey = getGroupByKey(false, event);
-        if (groupedWindow.containsKey(groupByKey)) {
-            groupedWindow.get(groupByKey).remove(event);
+        ArrayDeque<EventBean> groupWindow = groupedWindow.get(groupByKey);
+        if (groupWindow != null) {
+            groupWindow.remove(event);
         }
     }
 
@@ -76,8 +75,8 @@ public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
     @Override
     public void clearAll(Object... groupByKeys) {
         for (Object groupByKey : groupByKeys) {
-            if (groupedWindow.containsKey(groupByKey)) {
-                ArrayDeque<EventBean> eventBeans = this.groupedWindow.remove(groupByKey);
+            ArrayDeque<EventBean> eventBeans = this.groupedWindow.remove(groupByKey);
+            if (eventBeans != null) {
                 eventBeans.forEach(super::remove);
             }
         }

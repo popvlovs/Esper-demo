@@ -50,8 +50,6 @@ public class TimeWindow implements Iterable {
         if (isSupportRemoveStream) {
             reverseIndex = new HashMap<EventBean, TimeWindowPair>();
         }
-        MetricUtil.getGauge("window size", () -> this.window::size);
-        MetricUtil.getGauge("size", () -> () -> size);
     }
 
     /**
@@ -223,7 +221,7 @@ public class TimeWindow implements Iterable {
 
         size -= resultBeans.size();
 
-        if(window.isEmpty()){
+        if (window.isEmpty()){
             window = null;//new ArrayDeque<TimeWindowPair>();
             reverseIndex = null;//new HashMap<EventBean, TimeWindowPair>();
         }
