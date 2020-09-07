@@ -7,10 +7,7 @@ import com.espertech.esper.epl.expression.core.ExprEvaluator;
 import com.espertech.esper.epl.expression.core.ExprNode;
 import com.espertech.esper.metrics.statement.DistinctWinStateMetric;
 
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Copyright: 瀚思安信（北京）软件技术有限公司，保留所有权利。
@@ -62,6 +59,13 @@ public class DistinctTimeWindow extends TimeWindow {
     public void remove(EventBean theEvent) {
         this.removeFromDistinctStack(theEvent);
         super.remove(theEvent);
+    }
+
+    @Override
+    public void clearAll() {
+        this.metric.setDistinctWinSize(0);
+        this.distinctByStack.clear();
+        super.clearAll();
     }
 
     @Override

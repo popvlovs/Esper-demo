@@ -76,6 +76,7 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
             expireEvents.forEach(this::removeFromGroup);
         }
         metric.setInnerWinSize(super.getWindowSize());
+        metric.setGroupSize(groupedWindow.size());
         return expireEvents;
     }
 
@@ -143,14 +144,20 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
             ArrayDeque<EventBean> stack = distinctByStack.computeIfAbsent(distinctValue, key -> new ArrayDeque<>(stackSize));
             if (stack.size() < stackSize) {
                 stack.offer(bean);
-                this.window.add(bean);
-                metric.incGroupWinSize();
+                if (this.window.add(bean)) {
+                    metric.incGroupWinSize();
+                }
             } else {
                 if (isDiscardNewEvent) {
                     return false;
                 } else {
                     EventBean eventToExpire = stack.poll();
-                    this.window.remove(eventToExpire);
+                    if (this.window.remove(eventToExpire)) {
+                        metric.decGroupWinSize();
+                    }
+                    if (this.window.add(bean)) {
+                        metric.incGroupWinSize();
+                    }
                     this.removeFromAggregator(eventToExpire);
                     this.parent.removeWindow(eventToExpire);
                     stack.offer(bean);

@@ -169,6 +169,10 @@ public class TimeWindow implements Iterable {
             }
             reverseIndex.remove(theEvent);
         }
+        // grouped window不会执行TimeWindow.clearAll，需要这个策略来防止window无限增长（虽然大部分是null）
+        if (window.size() > 1_000_000) {
+            window.removeIf(item -> Objects.isNull(item) || Objects.isNull(item.getEventHolder()));
+        }
     }
 
     public void clearAll() {
@@ -324,5 +328,6 @@ public class TimeWindow implements Iterable {
 
     protected int getWindowSize() {
         return reverseIndex == null ? 0 : reverseIndex.size();
+        //return size;
     }
 }

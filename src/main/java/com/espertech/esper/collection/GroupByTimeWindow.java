@@ -44,6 +44,7 @@ public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
             ArrayDeque<EventBean> window = groupedWindow.computeIfAbsent(groupByKey, key -> new ArrayDeque<>());
             window.add(bean);
             metric.incGroupWinSize();
+            metric.setGroupSize(groupedWindow.size());
         }
         return succeed;
     }
@@ -53,6 +54,9 @@ public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
         ArrayDeque<EventBean> groupWindow = groupedWindow.get(groupByKey);
         if (groupWindow != null && groupWindow.remove(event)) {
             metric.decGroupWinSize();
+            if (groupWindow.isEmpty()) {
+                groupedWindow.remove(groupByKey);
+            }
         }
     }
 

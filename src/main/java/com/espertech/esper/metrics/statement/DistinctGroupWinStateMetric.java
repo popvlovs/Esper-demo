@@ -8,6 +8,7 @@ package com.espertech.esper.metrics.statement;
 public class DistinctGroupWinStateMetric extends StatementStateMetric {
     private volatile int innerWinSize;
     private volatile int groupWinSize;
+    private volatile int groupSize;
 
     public int getInnerWinSize() {
         return innerWinSize;
@@ -31,5 +32,13 @@ public class DistinctGroupWinStateMetric extends StatementStateMetric {
 
     public void decGroupWinSize() {
         this.groupWinSize--;
+    }
+
+    public int getGroupSize() {
+        return groupSize;
+    }
+
+    public void setGroupSize(int groupSize) {
+        this.groupSize = groupSize;
     }
 }

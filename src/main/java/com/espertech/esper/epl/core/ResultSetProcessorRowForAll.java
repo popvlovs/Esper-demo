@@ -57,6 +57,8 @@ public class ResultSetProcessorRowForAll implements ResultSetProcessor {
         } else if (prototype.isOutputAll()) {
             outputAllHelper = prototype.getResultSetProcessorHelperFactory().makeRSRowForAllOutputAll(this, prototype, agentInstanceContext);
         }
+        // 在context中加入aggregationService引用，用于快速清理aggregator队列
+        agentInstanceContext.addAggregationService(aggregationService);
     }
 
     public void setAgentInstanceContext(AgentInstanceContext context) {
@@ -125,6 +127,7 @@ public class ResultSetProcessorRowForAll implements ResultSetProcessor {
         if (InstrumentationHelper.ENABLED) {
             InstrumentationHelper.get().aResultSetProcessUngroupedFullyAgg(selectNewEvents, selectOldEvents);
         }
+        ResultSetProcessorUtil.applyAggClearResult(aggregationService, exprEvaluatorContext, newData, oldData, eventsPerStream);
         return new UniformPair<EventBean[]>(selectNewEvents, selectOldEvents);
     }
 
