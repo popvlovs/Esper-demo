@@ -11,8 +11,13 @@
 package com.espertech.esper.schedule;
 
 import com.espertech.esper.client.util.DateTime;
+import com.espertech.esper.core.context.util.EPStatementAgentInstanceHandle;
+import com.espertech.esper.core.service.EPStatementHandle;
+import com.espertech.esper.core.service.EPStatementHandleCallback;
 import com.espertech.esper.metrics.instrumentation.InstrumentationHelper;
 import com.espertech.esper.metrics.jmx.JmxGetter;
+import com.espertech.esper.metrics.statement.PatternStateMetric;
+import com.espertech.esper.metrics.statement.StatementStateMetric;
 import com.espertech.esper.timer.TimeSourceService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,6 +99,7 @@ public final class SchedulingServiceImpl implements SchedulingServiceSPI {
         }
         handleSet.remove(slot);
         handleSetMap.remove(handle);
+        decrPatternStateMetricOnHandleRemove(handle);
         if (InstrumentationHelper.ENABLED) {
             InstrumentationHelper.get().aScheduleRemove();
         }
@@ -129,6 +135,7 @@ public final class SchedulingServiceImpl implements SchedulingServiceSPI {
         for (Map.Entry<Long, SortedMap<Long, ScheduleHandle>> entry : headMap.entrySet()) {
             for (ScheduleHandle handle : entry.getValue().values()) {
                 handleSetMap.remove(handle);
+                decrPatternStateMetricOnHandleRemove(handle);
             }
         }
 
@@ -178,6 +185,7 @@ public final class SchedulingServiceImpl implements SchedulingServiceSPI {
         }
         handleSet.put(slot, handle);
         handleSetMap.put(handle, handleSet);
+        incrPatternStateMetricOnHandleAdd(handle);
     }
 
     @JmxGetter(name = "TimeHandleCount", description = "Number of outstanding time evaluations")
@@ -241,6 +249,41 @@ public final class SchedulingServiceImpl implements SchedulingServiceSPI {
                 visit.setStatementId(inner.getValue().getStatementId());
                 visit.setAgentInstanceId(inner.getValue().getAgentInstanceId());
                 visitor.visit(visit);
+            }
+        }
+    }
+
+    private static String getStatementNameFromHandle(ScheduleHandle handle) {
+        if (handle instanceof EPStatementHandleCallback) {
+            EPStatementAgentInstanceHandle agentInstanceHandle = ((EPStatementHandleCallback) handle).getAgentInstanceHandle();
+            if (agentInstanceHandle == null) {
+                return null;
+            }
+            EPStatementHandle statementHandle = agentInstanceHandle.getStatementHandle();
+            if (statementHandle == null) {
+                return null;
+            }
+            return statementHandle.getStatementName();
+        }
+        return null;
+    }
+
+    private void incrPatternStateMetricOnHandleAdd(ScheduleHandle handle) {
+        String statementName = getStatementNameFromHandle(handle);
+        if (statementName != null) {
+            PatternStateMetric metric = StatementStateMetric.getPatternStateMetric(statementName);
+            if (metric != null) {
+                metric.incSubExpression();
+            }
+        }
+    }
+
+    private void decrPatternStateMetricOnHandleRemove(ScheduleHandle handle) {
+        String statementName = getStatementNameFromHandle(handle);
+        if (statementName != null) {
+            PatternStateMetric metric = StatementStateMetric.getPatternStateMetric(statementName);
+            if (metric != null) {
+                metric.decSubExpression();
             }
         }
     }

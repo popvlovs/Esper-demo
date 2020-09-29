@@ -10,6 +10,18 @@ public class DistinctGroupWinStateMetric extends StatementStateMetric {
     private volatile int groupWinSize;
     private volatile int groupSize;
 
+    public DistinctGroupWinStateMetric(String name) {
+        super(name);
+    }
+
+    @Override
+    protected DistinctGroupWinStateMetric clear() {
+        this.innerWinSize = 0;
+        this.groupWinSize = 0;
+        this.groupSize = 0;
+        return this;
+    }
+
     public int getInnerWinSize() {
         return innerWinSize;
     }

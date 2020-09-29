@@ -1,4 +1,4 @@
-package espercep.demo.cases.statemetric;
+package espercep;
 
 import com.alibaba.fastjson.JSONObject;
 import com.espertech.esper.client.*;
@@ -22,13 +22,12 @@ import java.util.concurrent.TimeUnit;
  *
  * @author yitian_song
  */
-public class DistinctGroupWindowStateMetric {
-    private static final Logger logger = LoggerFactory.getLogger(DistinctGroupWindowStateMetric.class);
+public class EsperSyntaxTest {
+    private static final Logger logger = LoggerFactory.getLogger(EsperSyntaxTest.class);
 
     public static void main(String[] args) throws Exception {
         // Set event representation
         Configuration configuration = new Configuration();
-        configuration.setPatternMaxSubexpressions(100000L);
 
         FeatureToggle.setNumDistinctEventRetained(10);
         FeatureToggle.setDiscardExtTimedWindowOnAggOutput(true);
@@ -42,7 +41,7 @@ public class DistinctGroupWindowStateMetric {
         eventType.put("occur_time", Long.class);
         epService.getEPAdministrator().getConfiguration().addEventType("TestEvent", eventType);
 
-        String epl = FileUtil.readResourceAsString("epl_case18_window_count.sql");
+        String epl = FileUtil.readResourceAsString("epl_case25_syntax.sql");
         System.out.println(epl);
 
         EPStatement epStatement = epService.getEPAdministrator().createEPL(epl, "Rule#1");

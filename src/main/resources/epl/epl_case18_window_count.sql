@@ -5,6 +5,6 @@ SELECT
   max(occur_time) as end_time,
   A.event_name as event_name,
   A.src_address as src_address
-FROM TestEvent.win:ext_timed(occur_time, 10 sec) as A
-group by A.src_address, A.event_name
-having count(distinct(dst_address)) > 500
+FROM TestEvent.win:ext_timed(occur_time, 1 min) as A
+group by A.src_address
+having count(distinct(dst_address)) > 100

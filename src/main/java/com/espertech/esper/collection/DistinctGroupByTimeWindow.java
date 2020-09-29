@@ -112,6 +112,7 @@ public final class DistinctGroupByTimeWindow extends TimeWindow implements Group
                 });
             }
         }
+        super.clearIfEmpty();
     }
 
     private Object getGroupByKey(boolean isNewData, EventBean... eventBeans) {

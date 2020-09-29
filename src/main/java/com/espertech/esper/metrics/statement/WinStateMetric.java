@@ -8,6 +8,16 @@ package com.espertech.esper.metrics.statement;
 public class WinStateMetric extends StatementStateMetric {
     private volatile int innerWinSize;
 
+    public WinStateMetric(String name) {
+        super(name);
+    }
+
+    @Override
+    protected WinStateMetric clear() {
+        this.innerWinSize = 0;
+        return this;
+    }
+
     public int getInnerWinSize() {
         return innerWinSize;
     }

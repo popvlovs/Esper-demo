@@ -92,6 +92,7 @@ public final class GroupByTimeWindow extends TimeWindow implements GroupWindow {
                 });
             }
         }
+        super.clearIfEmpty();
     }
 
     private Object getGroupByKey(boolean isNewData, EventBean... eventBeans) {

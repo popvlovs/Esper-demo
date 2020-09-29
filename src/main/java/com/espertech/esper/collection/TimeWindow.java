@@ -15,7 +15,6 @@ import com.espertech.esper.epl.expression.time.ExprTimePeriodEvalDeltaConst;
 import com.espertech.esper.metrics.statement.WinStateMetric;
 import com.espertech.esper.view.DataWindowViewFactory;
 import com.espertech.esper.view.ViewDataVisitor;
-import espercep.demo.util.MetricUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +39,7 @@ public class TimeWindow implements Iterable {
 
     private ExprTimePeriodEvalDeltaConst timeDelta;
     private WinStateMetric metric;
+
     /**
      * Ctor.
      *
@@ -169,10 +169,20 @@ public class TimeWindow implements Iterable {
             }
             reverseIndex.remove(theEvent);
         }
+    }
+
+    protected void clearIfEmpty() {
         // grouped window不会执行TimeWindow.clearAll，需要这个策略来防止window无限增长（虽然大部分是null）
         if (window.size() > 1_000_000) {
-            window.removeIf(item -> Objects.isNull(item) || Objects.isNull(item.getEventHolder()));
+            while (shouldRemove(window.peek())) {
+                window.poll();
+            }
         }
+    }
+    private boolean shouldRemove(TimeWindowPair item) {
+        return Objects.isNull(item)
+                || Objects.isNull(item.getEventHolder())
+                || ((item.getEventHolder() instanceof List) && ((List) item.getEventHolder()).isEmpty());
     }
 
     public void clearAll() {

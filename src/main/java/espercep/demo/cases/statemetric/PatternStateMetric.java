@@ -22,13 +22,12 @@ import java.util.concurrent.TimeUnit;
  *
  * @author yitian_song
  */
-public class DistinctGroupWindowStateMetric {
-    private static final Logger logger = LoggerFactory.getLogger(DistinctGroupWindowStateMetric.class);
+public class PatternStateMetric {
+    private static final Logger logger = LoggerFactory.getLogger(PatternStateMetric.class);
 
     public static void main(String[] args) throws Exception {
         // Set event representation
         Configuration configuration = new Configuration();
-        configuration.setPatternMaxSubexpressions(100000L);
 
         FeatureToggle.setNumDistinctEventRetained(10);
         FeatureToggle.setDiscardExtTimedWindowOnAggOutput(true);
@@ -42,7 +41,7 @@ public class DistinctGroupWindowStateMetric {
         eventType.put("occur_time", Long.class);
         epService.getEPAdministrator().getConfiguration().addEventType("TestEvent", eventType);
 
-        String epl = FileUtil.readResourceAsString("epl_case18_window_count.sql");
+        String epl = FileUtil.readResourceAsString("epl_case24_follow_by.sql");
         System.out.println(epl);
 
         EPStatement epStatement = epService.getEPAdministrator().createEPL(epl, "Rule#1");
@@ -69,14 +68,15 @@ public class DistinctGroupWindowStateMetric {
             int randomVal = rand.nextInt(eventNames.length);
             JSONObject element = new JSONObject();
             element.put("event_id", cnt++);
-            element.put("event_name", eventNames[randomVal % eventNames.length]);
-            element.put("src_address", "172.16.100." + rand.nextInt(1000));
-            element.put("dst_address", "172.16.100." + rand.nextInt(200));
+            element.put("event_name", "A");
+            element.put("src_address", "172.16.100." + cnt % 0xFF);
+            element.put("dst_address", "172.16.100." + cnt % 0xFF);
             //element.put("occur_time", System.currentTimeMillis() + rand.nextInt(60000) - TimeUnit.SECONDS.toMillis(1));// + randomVal);
             element.put("occur_time", System.currentTimeMillis());
             //element.put("occur_time", now ++);
             MetricUtil.getConsumeRateMetric().mark();
             epRuntime.sendEvent(element, "TestEvent");
+            MetricUtil.getGauge("Rule#1 sub-expression", ()->StatementStateMetric.getPatternStateMetric("Rule#1")::getSubExpression);
         }
     }
 }

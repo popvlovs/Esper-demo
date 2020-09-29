@@ -9,6 +9,17 @@ public class DistinctWinStateMetric extends StatementStateMetric {
     private volatile int innerWinSize;
     private volatile int distinctWinSize;
 
+    public DistinctWinStateMetric(String name) {
+        super(name);
+    }
+
+    @Override
+    protected DistinctWinStateMetric clear() {
+        this.innerWinSize = 0;
+        this.distinctWinSize = 0;
+        return this;
+    }
+
     public int getInnerWinSize() {
         return innerWinSize;
     }
